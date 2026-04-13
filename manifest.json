@@ -1,0 +1,17 @@
+{
+  "name": "ACS Field Monitor",
+  "short_name": "ACS Field",
+  "description": "ACS Environmental Field Data Collection",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#2d5a27",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%232d5a27'/><text x='96' y='120' text-anchor='middle' font-size='80' font-family='system-ui' font-weight='700' fill='white'>ACS</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
