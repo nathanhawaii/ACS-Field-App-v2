@@ -987,7 +987,6 @@ async function confirmCreateGroup(){
   const name=document.getElementById('grpNameIn').value.trim();
   if(!name){toast('Enter group name');return}
   const checked=[...document.querySelectorAll('#grpFeatSelect input:checked')].map(cb=>cb.value);
-  if(checked.length<2){toast('Select at least 2 features');return}
   const locId=grpCreateContext==='session'?cSes.locationId:cLoc;
   const grp={id:uid(),locationId:locId,name:name,featureIds:checked,createdAt:Date.now()};
   await P('groups',grp);
