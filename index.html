@@ -176,13 +176,40 @@ select.fi{background:#fff}
   </div>
   <div id="locGroupList"></div>
   <div id="locGroupEmpty" class="empty" style="padding:12px"><p>No groups. Groups let you share photos across multiple features.</p></div>
-  <div class="btn-row" style="margin-top:12px">
+  <button class="btn btn-w" onclick="openBaseline()" style="margin-top:12px;font-size:13px">📊 Baseline / Historical Data</button>
+  <div class="btn-row" style="margin-top:8px">
     <button class="btn btn-s" onclick="editLocation()">Edit</button>
     <button class="btn btn-d" onclick="deleteLocation()" style="font-size:13px">Delete</button>
   </div>
 </div>
 
 <!-- FEATURE SETUP -->
+<div class="vw" id="v-baseline">
+  <div class="dhdr"><button class="back" onclick="nav('location')">‹</button><div class="dtitle">Baseline Data</div></div>
+  <div class="card">
+    <div class="card-t">Add Historical Reading</div>
+    <div class="fg"><label class="fl">Meter</label><select class="fi" id="blMeter"><option value="">-- Select Meter --</option></select></div>
+    <div class="fg"><label class="fl">Register Value</label><input type="number" class="fi" id="blValue" placeholder="Register reading" inputmode="decimal" step="any"></div>
+    <div class="fg"><label class="fl">Date</label><input type="date" class="fi" id="blDate"></div>
+    <div class="fg"><label class="fl">Reporting Period</label>
+      <div style="display:flex;gap:6px">
+        <select class="fi fi-sm" id="blRPType" style="flex:0 0 110px" onchange="blRPChange()">
+          <option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="other">Other</option>
+        </select>
+        <select class="fi fi-sm" id="blRPMonth" style="flex:1"><option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option><option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option><option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option></select>
+        <input type="number" class="fi fi-sm" id="blRPYear" style="flex:0 0 80px" value="2026" min="2020" max="2040">
+      </div>
+      <div id="blRPQtr" style="display:none;margin-top:6px"><select class="fi fi-sm" id="blQtr"><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select></div>
+    </div>
+    <button class="btn btn-p" onclick="saveBaseline()" style="margin-top:8px">Add Reading</button>
+  </div>
+  <div class="card">
+    <div class="card-t">Historical Readings</div>
+    <div id="blHistory"></div>
+  </div>
+</div>
+
+<!-- FEATURE SETUP (original) -->
 <div class="vw" id="v-feature-setup">
   <div class="dhdr"><button class="back" id="fsBack">‹</button><div class="dtitle" id="fsTitle">Add Feature</div></div>
   <div class="fg"><label class="fl">Type</label>
@@ -205,6 +232,20 @@ select.fi{background:#fff}
     </div>
   </div>
   <div class="fg"><label class="fl">Feature ID / Name</label><input type="text" class="fi" id="fIdIn" placeholder="e.g. 7575 or Well-A"></div>
+  <!-- Meter category (only visible for meters) -->
+  <div id="meterCatSection" style="display:none">
+    <div class="fg"><label class="fl">Meter Category</label>
+      <div class="rgroup" id="mCat">
+        <div class="ropt sel" onclick="selR(this,'mCat');togWellLink()" data-value="tenant">Tenant</div>
+        <div class="ropt" onclick="selR(this,'mCat');togWellLink()" data-value="well_totalizer">Well Totalizer</div>
+        <div class="ropt" onclick="selR(this,'mCat');togWellLink()" data-value="other">Other</div>
+      </div>
+    </div>
+    <div class="fg" id="wellLinkSection" style="display:none">
+      <label class="fl">Linked Well</label>
+      <select class="fi" id="linkedWell"><option value="">-- Select Well --</option></select>
+    </div>
+  </div>
   <div class="fg">
     <label class="fl">Location on Map (optional)</label>
     <div class="btn-row" style="margin-bottom:8px">
@@ -311,7 +352,14 @@ select.fi{background:#fff}
       <p class="fl">Register Photo ✓ <span style="font-weight:400;text-transform:none;letter-spacing:0">(tap to enlarge)</span></p>
       <div style="width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid var(--g);cursor:pointer" onclick="zoomRegPhoto()"><img id="regImg" style="width:100%;height:100%;object-fit:cover"></div>
     </div>
-    <div class="fg"><label class="fl">Register Reading</label><input type="number" class="fi" id="mtrReg" placeholder="Enter value from photo" inputmode="decimal" step="any"></div>
+    <div class="fg"><label class="fl">Register Reading</label>
+      <div id="prevReadingBox" style="display:none;background:#fff8e1;border:1px solid var(--amb);border-radius:8px;padding:10px;margin-bottom:8px;font-size:13px">
+        <strong style="color:var(--amb)">Previous:</strong> <span id="prevReadVal"></span>
+        <span style="color:var(--dim);font-size:11px" id="prevReadDate"></span>
+        <div id="usageDelta" style="display:none;margin-top:4px;font-weight:700;color:var(--g)"></div>
+      </div>
+      <input type="number" class="fi" id="mtrReg" placeholder="Enter value from photo" inputmode="decimal" step="any" oninput="calcDelta()">
+    </div>
   </div>
   <!-- CHECKBOXES -->
   <div class="card">
@@ -636,8 +684,8 @@ select.fi{background:#fff}
 </div>
 <script>
 // === DB ===
-let db;const DB='ACSField4',VER=2;
-function odb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,VER);r.onupgradeneeded=e=>{const d=e.target.result;['clients','locations','features','sessions','readings','settings','groups'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id'})})};r.onsuccess=e=>{db=e.target.result;res(db)};r.onerror=e=>rej(e.target.error)})}
+let db;const DB='ACSField4',VER=3;
+function odb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,VER);r.onupgradeneeded=e=>{const d=e.target.result;['clients','locations','features','sessions','readings','settings','groups','baselines'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id'})})};r.onsuccess=e=>{db=e.target.result;res(db)};r.onerror=e=>rej(e.target.error)})}
 function P(s,d){return new Promise((r,j)=>{const t=db.transaction(s,'readwrite');t.objectStore(s).put(d);t.oncomplete=()=>r();t.onerror=e=>j(e.target.error)})}
 function G(s,k){return new Promise((r,j)=>{const t=db.transaction(s,'readonly');const q=t.objectStore(s).get(k);q.onsuccess=()=>r(q.result);q.onerror=e=>j(e.target.error)})}
 function A(s){return new Promise((r,j)=>{const t=db.transaction(s,'readonly');const q=t.objectStore(s).getAll();q.onsuccess=()=>r(q.result);q.onerror=e=>j(e.target.error)})}
@@ -668,7 +716,7 @@ async function init(){
 function nav(v){
   document.querySelectorAll('.vw').forEach(x=>x.classList.remove('active'));
   document.getElementById('v-'+v).classList.add('active');
-  if(!['client','location','feature-setup','meter','well','group','custom'].includes(v)){
+  if(!['client','location','feature-setup','meter','well','group','custom','baseline'].includes(v)){
     document.querySelectorAll('.tbar button').forEach(b=>b.classList.remove('active'));
     const t=document.querySelector('[data-tab="'+v+'"]');if(t)t.classList.add('active');
   }
@@ -719,7 +767,9 @@ async function deleteLocation(){if(!confirm('Delete location and all data?'))ret
 
 // === FEATURES ===
 function openAddFeature(){eFeat=null;document.getElementById('fsTitle').textContent='Add Feature';document.getElementById('fIdIn').value='';document.getElementById('fLat').value='';document.getElementById('fLng').value='';document.getElementById('fDelBtn').style.display='none';document.querySelectorAll('#fType .ropt').forEach(r=>r.classList.remove('sel'));document.querySelector('#fType [data-value="meter"]').classList.add('sel');customFields=[];renderCustomFields();togCustomFields();document.getElementById('fCustomLabel').value='';document.getElementById('fsBack').onclick=()=>nav('location');nav('feature-setup');setTimeout(()=>initSMap(),100);loadGroupCheckboxes(cLoc,null)}
-async function openFS(id){const f=await G('features',id);eFeat=id;document.getElementById('fsTitle').textContent='Edit Feature';document.getElementById('fIdIn').value=f.featureId;document.getElementById('fLat').value=f.lat||'';document.getElementById('fLng').value=f.lng||'';document.getElementById('fDelBtn').style.display='block';document.querySelectorAll('#fType .ropt').forEach(r=>r.classList.remove('sel'));document.querySelector('#fType [data-value="'+f.type+'"]').classList.add('sel');customFields=f.customFields||[];document.getElementById('fCustomLabel').value=f.customLabel||'';renderCustomFields();togCustomFields();document.getElementById('fsBack').onclick=()=>nav('location');nav('feature-setup');setTimeout(()=>initSMap(f.lat,f.lng),100);loadGroupCheckboxes(f.locationId,f.id)}
+async function openFS(id){const f=await G('features',id);eFeat=id;document.getElementById('fsTitle').textContent='Edit Feature';document.getElementById('fIdIn').value=f.featureId;document.getElementById('fLat').value=f.lat||'';document.getElementById('fLng').value=f.lng||'';document.getElementById('fDelBtn').style.display='block';document.querySelectorAll('#fType .ropt').forEach(r=>r.classList.remove('sel'));document.querySelector('#fType [data-value="'+f.type+'"]').classList.add('sel');customFields=f.customFields||[];document.getElementById('fCustomLabel').value=f.customLabel||'';renderCustomFields();togCustomFields();
+if(f.type==='meter'){document.querySelectorAll('#mCat .ropt').forEach(r=>r.classList.remove('sel'));const catEl=document.querySelector('#mCat [data-value="'+(f.category||'tenant')+'"]');if(catEl)catEl.classList.add('sel');togWellLink();if(f.linkedWellId)setTimeout(()=>{document.getElementById('linkedWell').value=f.linkedWellId},100)}
+document.getElementById('fsBack').onclick=()=>nav('location');nav('feature-setup');setTimeout(()=>initSMap(f.lat,f.lng),100);loadGroupCheckboxes(f.locationId,f.id)}
 function initSMap(lat,lng){const w=document.getElementById('setupMapWrap');if(sMap){sMap.remove();sMap=null}const c=lat&&lng?[lat,lng]:[21.45,-158.0];const z=lat&&lng?16:10;sMap=L.map(w).setView(c,z);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(sMap);sMkr=lat&&lng?L.marker([lat,lng]).addTo(sMap):null;sMap.on('click',e=>{document.getElementById('fLat').value=e.latlng.lat.toFixed(6);document.getElementById('fLng').value=e.latlng.lng.toFixed(6);if(sMkr)sMap.removeLayer(sMkr);sMkr=L.marker([e.latlng.lat,e.latlng.lng]).addTo(sMap)});setTimeout(()=>sMap.invalidateSize(),200)}
 function useGPS(){if(!navigator.geolocation){toast('GPS unavailable');return}navigator.geolocation.getCurrentPosition(p=>{const la=p.coords.latitude,ln=p.coords.longitude;document.getElementById('fLat').value=la.toFixed(6);document.getElementById('fLng').value=ln.toFixed(6);if(sMap){sMap.setView([la,ln],16);if(sMkr)sMap.removeLayer(sMkr);sMkr=L.marker([la,ln]).addTo(sMap)}toast('GPS set')},()=>toast('GPS failed'),{enableHighAccuracy:true})}
 function clearPin(){document.getElementById('fLat').value='';document.getElementById('fLng').value='';if(sMkr&&sMap){sMap.removeLayer(sMkr);sMkr=null}}
@@ -735,7 +785,7 @@ async function loadGroupCheckboxes(locId,featId){
   }).join('');
 }
 
-async function saveFeature(){const fid=document.getElementById('fIdIn').value.trim();if(!fid){toast('Enter ID');return}const tp=document.querySelector('#fType .ropt.sel');const data={id:eFeat||uid(),locationId:cLoc,type:tp.dataset.value,featureId:fid,lat:parseFloat(document.getElementById('fLat').value)||null,lng:parseFloat(document.getElementById('fLng').value)||null};if(tp.dataset.value==='custom'){data.customLabel=document.getElementById('fCustomLabel').value.trim()||'Custom';data.customFields=customFields.slice()}await P('features',data);
+async function saveFeature(){const fid=document.getElementById('fIdIn').value.trim();if(!fid){toast('Enter ID');return}const tp=document.querySelector('#fType .ropt.sel');const data={id:eFeat||uid(),locationId:cLoc,type:tp.dataset.value,featureId:fid,lat:parseFloat(document.getElementById('fLat').value)||null,lng:parseFloat(document.getElementById('fLng').value)||null};if(tp.dataset.value==='custom'){data.customLabel=document.getElementById('fCustomLabel').value.trim()||'Custom';data.customFields=customFields.slice()}if(tp.dataset.value==='meter'){const cat=document.querySelector('#mCat .ropt.sel');data.category=cat?cat.dataset.value:'tenant';if(data.category==='well_totalizer')data.linkedWellId=document.getElementById('linkedWell').value||null}await P('features',data);
 // Update group memberships
 const grpChecks=document.querySelectorAll('#fGroupList input[data-gid]');
 for(const cb of grpChecks){const g=await G('groups',cb.dataset.gid);if(!g)continue;const idx=g.featureIds.indexOf(data.id);if(cb.checked&&idx===-1){g.featureIds.push(data.id);await P('groups',g)}else if(!cb.checked&&idx!==-1){g.featureIds.splice(idx,1);await P('groups',g)}}
@@ -881,7 +931,13 @@ async function confirmComplete(){cSes.endTime=Date.now();cSes.status='completed'
 async function openMtr(fid){cFeat=fid;const f=await G('features',fid);mPh=[];regP=null;document.getElementById('mtrT').textContent='Meter: '+f.featureId;document.getElementById('mtrReg').value='';document.getElementById('mtrNotes').value='';document.getElementById('regSelArea').style.display='none';['cb_mObstructed','cb_mVegDestruct','cb_mVegHerb','cb_mExtended','cb_mDecon'].forEach(x=>document.getElementById(x).checked=false);
 const rs=await A('readings');const ex=rs.find(r=>r.sessionId===cSes.id&&r.featureId===fid);
 if(ex){mPh=ex.photos||[];regP=ex.registerPhoto||null;document.getElementById('mtrReg').value=ex.registerValue||'';document.getElementById('mtrNotes').value=ex.notes||'';if(regP){document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP}if(ex.checks){document.getElementById('cb_mObstructed').checked=!!ex.checks.obstructed;document.getElementById('cb_mVegDestruct').checked=!!ex.checks.vegDestruct;document.getElementById('cb_mVegHerb').checked=!!ex.checks.vegHerbicide;document.getElementById('cb_mExtended').checked=!!ex.checks.extended;document.getElementById('cb_mDecon').checked=!!ex.checks.decon}}
-renderMP();nav('meter');setTimeout(()=>{const w=document.getElementById('mtrMap');if(vMap){vMap.remove();vMap=null}if(f.lat&&f.lng){w.style.display='block';vMap=L.map(w).setView([f.lat,f.lng],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(vMap);L.marker([f.lat,f.lng]).addTo(vMap).bindPopup(f.featureId).openPopup();setTimeout(()=>vMap.invalidateSize(),200)}else{w.style.display='none'}},100)}
+renderMP();nav('meter');
+// Load previous reading
+prevReadingVal=null;
+const prev=await getPrevReading(fid,cSes.id);
+const prBox=document.getElementById('prevReadingBox');
+if(prev){prBox.style.display='block';document.getElementById('prevReadVal').textContent=fmtNum(prev.value);document.getElementById('prevReadDate').textContent=prev.date?' ('+prev.date+')':' ('+new Date(prev.timestamp).toLocaleDateString()+')';prevReadingVal=prev.value;calcDelta()}else{prBox.style.display='none'}
+setTimeout(()=>{const w=document.getElementById('mtrMap');if(vMap){vMap.remove();vMap=null}if(f.lat&&f.lng){w.style.display='block';vMap=L.map(w).setView([f.lat,f.lng],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(vMap);L.marker([f.lat,f.lng]).addTo(vMap).bindPopup(f.featureId).openPopup();setTimeout(()=>vMap.invalidateSize(),200)}else{w.style.display='none'}},100)}
 function renderMP(){document.getElementById('mtrPhotos').innerHTML=mPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="mPh.splice('+i+',1);renderMP()">✕</button></div>').join('');document.getElementById('mtrPC').textContent=mPh.length?mPh.length+' photo'+(mPh.length>1?'s':''):''}
 function startRegSelect(){if(!mPh.length){toast('Take photos first');return}document.getElementById('regGrid').innerHTML=mPh.map((p,i)=>'<div class="pthumb" onclick="selRegP('+i+')" style="cursor:pointer"><img src="'+p+'"></div>').join('');showM('regModal')}
 function selRegP(i){regP=mPh[i];document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;closeM('regModal');setTimeout(()=>document.getElementById('mtrReg').focus(),300)}
@@ -929,13 +985,99 @@ document.getElementById('libIn').addEventListener('change',function(e){
 
 // Custom feature fields
 let customFields=[];
-function togCustomFields(){const tp=document.querySelector('#fType .ropt.sel');document.getElementById('customFieldsSetup').style.display=tp&&tp.dataset.value==='custom'?'block':'none'}
+function togCustomFields(){const tp=document.querySelector('#fType .ropt.sel');const isCustom=tp&&tp.dataset.value==='custom';const isMeter=tp&&tp.dataset.value==='meter';document.getElementById('customFieldsSetup').style.display=isCustom?'block':'none';document.getElementById('meterCatSection').style.display=isMeter?'block':'none';if(isMeter)loadWellOptions()}
 function addCustomField(){const n=document.getElementById('newFieldName').value.trim(),t=document.getElementById('newFieldType').value;if(!n){toast('Enter field name');return}customFields.push({name:n,type:t,options:t==='select'?prompt('Enter options separated by commas (e.g. Low,Medium,High)')||'':''});document.getElementById('newFieldName').value='';renderCustomFields()}
 function renderCustomFields(){document.getElementById('customFieldList').innerHTML=customFields.map((f,i)=>'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:13px;font-weight:600;flex:1">'+f.name+' <span style="color:var(--dim);font-weight:400">('+f.type+')</span></span><button style="background:#fde8e8;border:none;color:var(--red);width:24px;height:24px;border-radius:6px;font-size:12px;cursor:pointer" onclick="customFields.splice('+i+',1);renderCustomFields()">✕</button></div>').join('')||'<div style="font-size:12px;color:var(--dim)">No custom fields yet.</div>'}
 
 // Quick add feature from session
 function quickAddFeature(){if(!cSes)return;cLoc=cSes.locationId;openAddFeature();document.getElementById('fsBack').onclick=()=>nav('session')}
 document.getElementById('camIn').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){const img=new Image();img.onload=function(){const c=document.createElement('canvas');const M=1600;let w=img.width,h=img.height;if(w>M||h>M){if(w>h){h=h*M/w;w=M}else{w=w*M/h;h=M}}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);if(capTgt==='meter'){mPh.push(d);renderMP()}else if(capTgt==='well'){wPh.push(d);renderWP()}else if(capTgt==='register'){mPh.push(d);regP=d;renderMP();document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;setTimeout(()=>document.getElementById('mtrReg').focus(),300)}else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos()}else if(capTgt==='custom'){custPh.push(d);renderCustPhotos()}};img.src=ev.target.result};r.readAsDataURL(f)});
+
+// === HELPERS ===
+function fmtNum(n){if(n==null||isNaN(n))return'—';return Number(n).toLocaleString('en-US')}
+function togWellLink(){const cat=document.querySelector('#mCat .ropt.sel');document.getElementById('wellLinkSection').style.display=cat&&cat.dataset.value==='well_totalizer'?'block':'none'}
+async function loadWellOptions(){const ws=(await A('features')).filter(f=>f.locationId===cLoc&&f.type==='well');document.getElementById('linkedWell').innerHTML='<option value="">-- Select Well --</option>'+ws.map(w=>'<option value="'+w.id+'">'+w.featureId+'</option>').join('')}
+
+// Get previous reading for a meter (from sessions or baselines, most recent before given session)
+async function getPrevReading(featureId,currentSessionId){
+  // Get all session readings for this feature
+  const allReadings=(await A('readings')).filter(r=>r.featureId===featureId&&r.type==='meter'&&r.sessionId!==currentSessionId);
+  // Get all baselines for this feature
+  const allBaselines=(await A('baselines')).filter(b=>b.featureId===featureId);
+  // Combine and sort by timestamp/date descending
+  const combined=[];
+  allReadings.forEach(r=>{combined.push({value:r.registerValue,timestamp:r.timestamp,date:null,source:'session'})});
+  allBaselines.forEach(b=>{combined.push({value:b.registerValue,timestamp:new Date(b.date+'T00:00:00').getTime(),date:b.date,reportingPeriod:b.reportingPeriod,source:'baseline'})});
+  combined.sort((a,b)=>b.timestamp-a.timestamp);
+  return combined.length?combined[0]:null;
+}
+
+// Get full history for a meter (for charts)
+async function getMeterHistory(featureId){
+  const allReadings=(await A('readings')).filter(r=>r.featureId===featureId&&r.type==='meter');
+  const allBaselines=(await A('baselines')).filter(b=>b.featureId===featureId);
+  const sessions=await A('sessions');
+  const combined=[];
+  allReadings.forEach(r=>{const s=sessions.find(x=>x.id===r.sessionId);combined.push({value:r.registerValue,timestamp:r.timestamp,date:s?s.date:null,rp:s?s.reportingPeriod:null,source:'session'})});
+  allBaselines.forEach(b=>{combined.push({value:b.registerValue,timestamp:new Date(b.date+'T00:00:00').getTime(),date:b.date,rp:b.reportingPeriod,source:'baseline'})});
+  combined.sort((a,b)=>a.timestamp-b.timestamp);
+  return combined;
+}
+
+let prevReadingVal=null;
+function calcDelta(){
+  const cur=parseFloat(document.getElementById('mtrReg').value);
+  const del=document.getElementById('usageDelta');
+  if(isNaN(cur)||prevReadingVal==null){del.style.display='none';return}
+  const usage=cur-prevReadingVal;
+  del.style.display='block';
+  del.textContent='Usage: '+fmtNum(usage)+(usage<0?' ⚠️ Negative — check value':'');
+  del.style.color=usage<0?'var(--red)':'var(--g)';
+}
+
+// === BASELINE ===
+async function openBaseline(){
+  const meters=(await A('features')).filter(f=>f.locationId===cLoc&&f.type==='meter');
+  document.getElementById('blMeter').innerHTML='<option value="">-- Select Meter --</option>'+meters.map(m=>'<option value="'+m.id+'">'+m.featureId+(m.category?' ('+m.category+')':'')+'</option>').join('');
+  document.getElementById('blValue').value='';
+  document.getElementById('blDate').value=new Date().toISOString().split('T')[0];
+  renderBaselineHistory();
+  nav('baseline');
+}
+function blRPChange(){const t=document.getElementById('blRPType').value;document.getElementById('blRPQtr').style.display=t==='quarterly'?'block':'none';document.getElementById('blRPMonth').style.display=t==='monthly'?'block':'none'}
+async function saveBaseline(){
+  const fid=document.getElementById('blMeter').value;
+  const val=parseFloat(document.getElementById('blValue').value);
+  if(!fid){toast('Select a meter');return}
+  if(isNaN(val)){toast('Enter register value');return}
+  const rpType=document.getElementById('blRPType').value;
+  let rp={frequency:rpType,year:document.getElementById('blRPYear').value};
+  if(rpType==='monthly')rp.month=document.getElementById('blRPMonth').value;
+  if(rpType==='quarterly')rp.quarter=document.getElementById('blQtr').value;
+  const bl={id:uid(),featureId:fid,locationId:cLoc,registerValue:val,date:document.getElementById('blDate').value,reportingPeriod:rp,createdAt:Date.now()};
+  await P('baselines',bl);
+  document.getElementById('blValue').value='';
+  renderBaselineHistory();toast('Baseline added');
+}
+async function renderBaselineHistory(){
+  const bls=(await A('baselines')).filter(b=>b.locationId===cLoc).sort((a,b)=>b.timestamp||b.createdAt-(a.timestamp||a.createdAt));
+  const fs=await A('features');
+  const el=document.getElementById('blHistory');
+  if(!bls.length){el.innerHTML='<div class="empty"><p>No baseline data yet.</p></div>';return}
+  // Group by feature
+  const byFeat={};bls.forEach(b=>{if(!byFeat[b.featureId])byFeat[b.featureId]=[];byFeat[b.featureId].push(b)});
+  let h='';
+  for(const[fid,entries] of Object.entries(byFeat)){
+    const f=fs.find(x=>x.id===fid);
+    h+='<div style="margin-bottom:10px"><strong style="font-size:14px">'+(f?f.featureId:'?')+'</strong>';
+    entries.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(b=>{
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bdr);font-size:13px"><span>'+fmtNum(b.registerValue)+' — '+b.date+'</span><button style="background:#fde8e8;border:none;color:var(--red);width:24px;height:24px;border-radius:6px;font-size:11px;cursor:pointer" onclick="delBaseline(\''+b.id+'\')">✕</button></div>';
+    });
+    h+='</div>';
+  }
+  el.innerHTML=h;
+}
+async function delBaseline(id){await D('baselines',id);renderBaselineHistory();toast('Deleted')}
 
 // === CUSTOM FEATURE CHECK ===
 async function openCustomCheck(fid){
@@ -1125,11 +1267,23 @@ async function expPDF(mode){
 
   if(mr.length){
     addSection('Water Meters');
-    const mData=mr.sort((a,b)=>{const fa=fs.find(f=>f.id===a.featureId),fb=fs.find(f=>f.id===b.featureId);return(fa?.featureId||'').localeCompare(fb?.featureId||'')}).map(r=>{const f=fs.find(x=>x.id===r.featureId);return[(f?f.featureId:''),r.registerValue,checksToStr(r.checks),(r.notes||'').substring(0,80)]});
-    doc.autoTable({startY:y,head:[['Meter ID','Register','Conditions','Notes']],body:mData,margin:{left:mg,right:mg},styles:{fontSize:8},headStyles:{fillColor:[45,90,39]},theme:'grid'});
+    // Build reconciliation data
+    const reconData=[];
+    const sortedMr=mr.sort((a,b)=>{const fa=fs.find(f=>f.id===a.featureId),fb=fs.find(f=>f.id===b.featureId);return(fa?.featureId||'').localeCompare(fb?.featureId||'')});
+    for(const r of sortedMr){
+      const f=fs.find(x=>x.id===r.featureId);
+      const prev=await getPrevReading(r.featureId,sid);
+      const prevVal=prev?prev.value:null;
+      const usage=prevVal!=null?r.registerValue-prevVal:null;
+      const cat=f?f.category||'tenant':'tenant';
+      reconData.push({featureId:f?f.featureId:'',category:cat,previous:prevVal,current:r.registerValue,usage,notes:(r.notes||'').substring(0,60),conditions:checksToStr(r.checks),linkedWellId:f?f.linkedWellId:null});
+    }
+    const reconBody=reconData.map(d=>[d.featureId,d.category==='well_totalizer'?'Totalizer':d.category==='other'?'Other':'Tenant',d.previous!=null?fmtNum(d.previous):'—',fmtNum(d.current),d.usage!=null?fmtNum(d.usage):'—',d.conditions,d.notes]);
+    doc.autoTable({startY:y,head:[['Meter','Category','Previous','Current','Usage','Conditions','Notes']],body:reconBody,margin:{left:mg,right:mg},styles:{fontSize:7},headStyles:{fillColor:[45,90,39]},theme:'grid',
+      columnStyles:{2:{halign:'right'},3:{halign:'right'},4:{halign:'right'}}});
     y=doc.lastAutoTable.finalY+6;
     if(mode==='full'){
-      for(const r of mr){
+      for(const r of sortedMr){
         const f=fs.find(x=>x.id===r.featureId);
         const gp=await getGrpPhotos(sid,r.featureId);
         const allPics=[...(r.registerPhoto?[r.registerPhoto]:[]),...r.photos.filter(p=>p!==r.registerPhoto),...gp];
@@ -1144,9 +1298,29 @@ async function expPDF(mode){
 
   if(wr.length){
     addSection('Wells');
-    const wData=wr.map(r=>{const f=fs.find(x=>x.id===r.featureId);return[(f?f.featureId:''),r.pumpStatus,r.waterDepth,(r.sampleTemp||''),(r.conductivityMS!=null?r.conductivityMS.toFixed(4):''),(r.sampleTime||''),checksToStr(r.checks),(r.notes||'').substring(0,60)]});
+    // Build well data including totalizer info
+    const wData=[];
+    for(const r of wr){
+      const f=fs.find(x=>x.id===r.featureId);
+      const row=[(f?f.featureId:''),r.pumpStatus,r.waterDepth,(r.sampleTemp||''),(r.conductivityMS!=null?r.conductivityMS.toFixed(4):''),(r.sampleTime||''),checksToStr(r.checks),(r.notes||'').substring(0,60)];
+      wData.push(row);
+    }
     doc.autoTable({startY:y,head:[['Well','Pump','Depth','Temp','Cond(mS)','Time','Conditions','Notes']],body:wData,margin:{left:mg,right:mg},styles:{fontSize:7},headStyles:{fillColor:[45,90,39]},theme:'grid'});
-    y=doc.lastAutoTable.finalY+6;
+    y=doc.lastAutoTable.finalY+4;
+    // Show well totalizer meters
+    const totalizers=fs.filter(f=>f.type==='meter'&&f.category==='well_totalizer'&&f.linkedWellId);
+    if(totalizers.length){
+      checkPage(16);doc.setFontSize(9);doc.setFont(undefined,'italic');doc.setTextColor(100);doc.text('Well Totalizer Readings (ref. Meter Reconciliation)',mg,y);y+=4;doc.setTextColor(0);doc.setFont(undefined,'normal');
+      const tData=[];
+      for(const t of totalizers){
+        const well=fs.find(f=>f.id===t.linkedWellId);
+        const reading=mr.find(r=>r.featureId===t.id);
+        const prev=reading?await getPrevReading(t.id,sid):null;
+        tData.push([(well?well.featureId:'?')+' ← '+t.featureId,reading?fmtNum(reading.registerValue):'—',prev?fmtNum(prev.value):'—',reading&&prev?fmtNum(reading.registerValue-prev.value):'—']);
+      }
+      doc.autoTable({startY:y,head:[['Well ← Totalizer','Current','Previous','Production']],body:tData,margin:{left:mg,right:mg},styles:{fontSize:7},headStyles:{fillColor:[100,100,100]},theme:'grid',columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'}}});
+      y=doc.lastAutoTable.finalY+6;
+    }
     if(mode==='full'){
       for(const r of wr){
         const f=fs.find(x=>x.id===r.featureId);
@@ -1263,6 +1437,7 @@ async function exportFull(){
     sessions:await A('sessions'),
     readings:await A('readings'),
     groups:await A('groups'),
+    baselines:await A('baselines'),
     settings:{roles:settings.roles,personnel:settings.personnel}
   };
   const json=JSON.stringify(data);
@@ -1333,6 +1508,15 @@ async function importData(event){
           await P('groups',g);gA++;
         }
       }
+      // Merge baselines
+      let bA=0;
+      if(data.baselines){
+        const existBl=new Set((await A('baselines')).map(b=>b.id));
+        for(const b of data.baselines){
+          if(existBl.has(b.id))continue;
+          await P('baselines',b);bA++;
+        }
+      }
     }
     // Merge settings
     if(data.settings){
@@ -1353,7 +1537,7 @@ async function importData(event){
       await P('settings',s);
     }
     let msg=cA+' clients, '+lA+' locations, '+fA+' features';
-    if(isFull)msg+=', '+sA+' sessions, '+rA+' readings, '+gA+' groups';
+    if(isFull)msg+=', '+sA+' sessions, '+rA+' readings, '+gA+' groups, '+bA+' baselines';
     if(cS)msg+=' ('+cS+' duplicate clients skipped)';
     status.innerHTML='<span style="color:var(--ok)">✓ Imported: '+msg+'</span>';
     renderClis();renderSettings();
@@ -1365,7 +1549,7 @@ async function importData(event){
 }
 
 // === CLEAR ALL ===
-async function clearAll(){if(!confirm('Delete ALL data?'))return;if(!confirm('Absolutely sure?'))return;await CLR('clients');await CLR('locations');await CLR('features');await CLR('sessions');await CLR('readings');await CLR('groups');cSes=null;localStorage.removeItem('lastSes4');updSesUI();nav('clients');toast('All data cleared')}
+async function clearAll(){if(!confirm('Delete ALL data?'))return;if(!confirm('Absolutely sure?'))return;await CLR('clients');await CLR('locations');await CLR('features');await CLR('sessions');await CLR('readings');await CLR('groups');await CLR('baselines');cSes=null;localStorage.removeItem('lastSes4');updSesUI();nav('clients');toast('All data cleared')}
 
 init();
 </script>
