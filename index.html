@@ -9,17 +9,6 @@
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script><!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ACS Field">
-<link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -180,6 +169,13 @@ select.fi{background:#fff}
     <button class="btn btn-p btn-sm" onclick="openAddFeature()">+ Add</button>
   </div>
   <div id="featureList"></div><div id="featureEmpty" class="empty"><p>No meters or wells added yet.</p></div>
+  <!-- Location Groups -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;margin-bottom:10px">
+    <h3 style="font-size:16px;font-weight:700">Groups</h3>
+    <button class="btn btn-p btn-sm" onclick="openCreateLocGroup()">+ Create Group</button>
+  </div>
+  <div id="locGroupList"></div>
+  <div id="locGroupEmpty" class="empty" style="padding:12px"><p>No groups. Groups let you share photos across multiple features.</p></div>
   <div class="btn-row" style="margin-top:12px">
     <button class="btn btn-s" onclick="editLocation()">Edit</button>
     <button class="btn btn-d" onclick="deleteLocation()" style="font-size:13px">Delete</button>
@@ -191,8 +187,21 @@ select.fi{background:#fff}
   <div class="dhdr"><button class="back" id="fsBack">‹</button><div class="dtitle" id="fsTitle">Add Feature</div></div>
   <div class="fg"><label class="fl">Type</label>
     <div class="rgroup" id="fType">
-      <div class="ropt sel" onclick="selR(this,'fType')" data-value="meter">Meter</div>
-      <div class="ropt" onclick="selR(this,'fType')" data-value="well">Well</div>
+      <div class="ropt sel" onclick="selR(this,'fType');togCustomFields()" data-value="meter">Meter</div>
+      <div class="ropt" onclick="selR(this,'fType');togCustomFields()" data-value="well">Well</div>
+      <div class="ropt" onclick="selR(this,'fType');togCustomFields()" data-value="custom">Custom</div>
+    </div>
+  </div>
+  <div id="customFieldsSetup" style="display:none">
+    <div class="fg"><label class="fl">Custom Type Label</label><input type="text" class="fi fi-sm" id="fCustomLabel" placeholder="e.g. Gauge, Tank, Valve"></div>
+    <div class="card">
+      <div class="card-t">Custom Data Fields</div>
+      <div id="customFieldList"></div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <input type="text" class="fi fi-sm" id="newFieldName" placeholder="Field name" style="flex:1">
+        <select class="fi fi-sm" id="newFieldType" style="flex:0 0 90px"><option value="text">Text</option><option value="number">Number</option><option value="select">Dropdown</option></select>
+        <button class="btn btn-p btn-sm" onclick="addCustomField()">+</button>
+      </div>
     </div>
   </div>
   <div class="fg"><label class="fl">Feature ID / Name</label><input type="text" class="fi" id="fIdIn" placeholder="e.g. 7575 or Well-A"></div>
@@ -207,6 +216,10 @@ select.fi{background:#fff}
       <div class="fg" style="flex:1;margin-bottom:0"><label class="fl">Lat</label><input type="number" class="fi fi-sm" id="fLat" step="any"></div>
       <div class="fg" style="flex:1;margin-bottom:0"><label class="fl">Lng</label><input type="number" class="fi fi-sm" id="fLng" step="any"></div>
     </div>
+  </div>
+  <div class="fg" id="fGroupAssign" style="display:none">
+    <label class="fl">Add to Groups (optional)</label>
+    <div id="fGroupList"></div>
   </div>
   <button class="btn btn-p" onclick="saveFeature()">Save Feature</button>
   <button class="btn btn-d" id="fDelBtn" onclick="deleteFeature()" style="display:none;margin-top:8px;font-size:13px">Delete Feature</button>
@@ -232,6 +245,9 @@ select.fi{background:#fff}
       </div>
       <div class="card-t">Meters</div><div id="sesMtrList"></div>
       <div class="card-t" style="margin-top:14px">Wells</div><div id="sesWellList"></div>
+      <div id="sesCustomSection" style="display:none"><div class="card-t" style="margin-top:14px" id="sesCustomTitle">Custom</div><div id="sesCustomList"></div></div>
+      <!-- Quick Add Feature -->
+      <button class="btn btn-s" onclick="quickAddFeature()" style="margin-top:10px;font-size:13px">+ Add Feature to Location</button>
       <!-- Groups -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;margin-bottom:10px">
         <div class="card-t" style="margin-bottom:0">Groups</div>
@@ -250,6 +266,9 @@ select.fi{background:#fff}
         <div class="cam-btn-big" onclick="capturePhoto('generic')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
           Take Photo
+        </div>
+        <div class="cam-btn-big" onclick="selectFromLib('generic')" style="border-color:var(--blue);color:var(--blue);background:#eef4fa">
+          📁 Select from Library (multi)
         </div>
         <div class="pgrid" id="genPhotos"></div>
       </div>
@@ -275,6 +294,9 @@ select.fi{background:#fff}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
       Take Photo
     </div>
+    <div class="cam-btn-big" onclick="selectFromLib('meter')" style="border-color:var(--blue);color:var(--blue);background:#eef4fa">
+      📁 Select from Library (multi)
+    </div>
     <div class="pgrid" id="mtrPhotos"></div>
     <div id="mtrPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
   </div>
@@ -286,8 +308,8 @@ select.fi{background:#fff}
       <button class="btn btn-p btn-sm" onclick="capturePhoto('register')">Take Closeup</button>
     </div>
     <div id="regSelArea" style="display:none;margin-bottom:10px">
-      <p class="fl">Register Photo ✓</p>
-      <div style="width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid var(--g)"><img id="regImg" style="width:100%;height:100%;object-fit:cover"></div>
+      <p class="fl">Register Photo ✓ <span style="font-weight:400;text-transform:none;letter-spacing:0">(tap to enlarge)</span></p>
+      <div style="width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid var(--g);cursor:pointer" onclick="zoomRegPhoto()"><img id="regImg" style="width:100%;height:100%;object-fit:cover"></div>
     </div>
     <div class="fg"><label class="fl">Register Reading</label><input type="number" class="fi" id="mtrReg" placeholder="Enter value from photo" inputmode="decimal" step="any"></div>
   </div>
@@ -315,6 +337,9 @@ select.fi{background:#fff}
     <div class="cam-btn-big" onclick="capturePhoto('well')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
       Take Photo
+    </div>
+    <div class="cam-btn-big" onclick="selectFromLib('well')" style="border-color:var(--blue);color:var(--blue);background:#eef4fa">
+      📁 Select from Library (multi)
     </div>
     <div class="pgrid" id="wellPhotos"></div>
     <div id="wellPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
@@ -354,6 +379,30 @@ select.fi{background:#fff}
   <button class="btn btn-p" onclick="saveWell()">Save Well Reading</button>
 </div>
 
+<!-- CUSTOM FEATURE CHECK -->
+<div class="vw" id="v-custom">
+  <div class="dhdr"><button class="back" onclick="nav('session')">‹</button><div class="dtitle" id="custT">Custom</div></div>
+  <div class="map-wrap" id="custMap"></div>
+  <div class="card">
+    <div class="card-t">📸 Photos</div>
+    <div class="cam-btn-big" onclick="capturePhoto('custom')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Take Photo
+    </div>
+    <div class="cam-btn-big" onclick="selectFromLib('custom')" style="border-color:var(--blue);color:var(--blue);background:#eef4fa">
+      📁 Select from Library (multi)
+    </div>
+    <div class="pgrid" id="custPhotos"></div>
+    <div id="custPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
+  </div>
+  <div class="card">
+    <div class="card-t">Data</div>
+    <div id="custFields"></div>
+  </div>
+  <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="custNotes" placeholder="Observations..."></textarea></div>
+  <button class="btn btn-p" onclick="saveCustom()">Save</button>
+</div>
+
 <!-- GROUP DETAIL -->
 <div class="vw" id="v-group">
   <div class="dhdr"><button class="back" onclick="nav('session')">‹</button><div class="dtitle" id="grpTitle">Group</div></div>
@@ -367,6 +416,9 @@ select.fi{background:#fff}
     <div class="cam-btn-big" onclick="capturePhoto('group')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
       Take Photo
+    </div>
+    <div class="cam-btn-big" onclick="selectFromLib('group')" style="border-color:var(--blue);color:var(--blue);background:#eef4fa">
+      📁 Select from Library (multi)
     </div>
     <div class="pgrid" id="grpPhotos"></div>
     <div id="grpPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
@@ -574,6 +626,14 @@ select.fi{background:#fff}
 </div>
 
 <input type="file" id="camIn" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="libIn" accept="image/*" multiple style="display:none">
+
+<!-- REGISTER PHOTO ZOOM -->
+<div class="modal-bg" id="regZoom" onclick="closeM('regZoom')">
+  <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:10px">
+    <img id="regZoomImg" style="max-width:100%;max-height:90vh;border-radius:8px;object-fit:contain">
+  </div>
+</div>
 <script>
 // === DB ===
 let db;const DB='ACSField4',VER=2;
@@ -586,7 +646,7 @@ function CLR(s){return new Promise((r,j)=>{const t=db.transaction(s,'readwrite')
 
 // === STATE ===
 let cCli=null,cLoc=null,cSes=null,cFeat=null,eFeat=null,eCli=null,eLoc=null;
-let mPh=[],wPh=[],genPh=[],grpPh=[],regP=null,capTgt=null;
+let mPh=[],wPh=[],genPh=[],grpPh=[],custPh=[],regP=null,capTgt=null;
 let sMap=null,sMkr=null,vMap=null;
 let sesPersonnel=[];
 let curGroupId=null;
@@ -608,7 +668,7 @@ async function init(){
 function nav(v){
   document.querySelectorAll('.vw').forEach(x=>x.classList.remove('active'));
   document.getElementById('v-'+v).classList.add('active');
-  if(!['client','location','feature-setup','meter','well','group'].includes(v)){
+  if(!['client','location','feature-setup','meter','well','group','custom'].includes(v)){
     document.querySelectorAll('.tbar button').forEach(b=>b.classList.remove('active'));
     const t=document.querySelector('[data-tab="'+v+'"]');if(t)t.classList.add('active');
   }
@@ -654,16 +714,32 @@ function openAddLocation(){eLoc=null;document.getElementById('locMT').textConten
 async function editLocation(){const l=await G('locations',cLoc);eLoc=cLoc;document.getElementById('locMT').textContent='Edit Location';document.getElementById('locNI').value=l.name;document.getElementById('locAI').value=l.address||'';showM('locModal')}
 async function saveLoc(){const n=document.getElementById('locNI').value.trim();if(!n){toast('Enter name');return}await P('locations',{id:eLoc||uid(),clientId:cCli,name:n,address:document.getElementById('locAI').value.trim()});closeM('locModal');renderCli();toast('Saved')}
 function openLoc(id){cLoc=id;nav('location')}
-async function renderLoc(){const l=await G('locations',cLoc);if(!l)return;document.getElementById('locName').textContent=l.name;document.getElementById('locInfo').innerHTML='<div style="font-size:13px;color:var(--dim)">'+(l.address||'No address')+'</div>';const fs=(await A('features')).filter(f=>f.locationId===cLoc);const el=document.getElementById('featureList');const emp=document.getElementById('featureEmpty');if(!fs.length){el.innerHTML='';emp.style.display='block';return}emp.style.display='none';const ms=fs.filter(f=>f.type==='meter').sort((a,b)=>a.featureId.localeCompare(b.featureId)),ws=fs.filter(f=>f.type==='well').sort((a,b)=>a.featureId.localeCompare(b.featureId));let h='';if(ms.length){h+='<div class="card-t">Meters ('+ms.length+')</div>';h+=ms.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}if(ws.length){h+='<div class="card-t" style="margin-top:10px">Wells ('+ws.length+')</div>';h+=ws.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}el.innerHTML=h}
+async function renderLoc(){const l=await G('locations',cLoc);if(!l)return;document.getElementById('locName').textContent=l.name;document.getElementById('locInfo').innerHTML='<div style="font-size:13px;color:var(--dim)">'+(l.address||'No address')+'</div>';const fs=(await A('features')).filter(f=>f.locationId===cLoc);const el=document.getElementById('featureList');const emp=document.getElementById('featureEmpty');if(!fs.length){el.innerHTML='';emp.style.display='block';renderLocGroups();return}emp.style.display='none';const ms=fs.filter(f=>f.type==='meter').sort((a,b)=>a.featureId.localeCompare(b.featureId)),ws=fs.filter(f=>f.type==='well').sort((a,b)=>a.featureId.localeCompare(b.featureId));let h='';if(ms.length){h+='<div class="card-t">Meters ('+ms.length+')</div>';h+=ms.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}if(ws.length){h+='<div class="card-t" style="margin-top:10px">Wells ('+ws.length+')</div>';h+=ws.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}const cust=fs.filter(f=>f.type==='custom').sort((a,b)=>a.featureId.localeCompare(b.featureId));if(cust.length){h+='<div class="card-t" style="margin-top:10px">Custom ('+cust.length+')</div>';h+=cust.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.customLabel||'Custom')+(f.lat?' • 📍':'')+'</div></div><span class="chevron">›</span></div>').join('')}el.innerHTML=h;renderLocGroups()}
 async function deleteLocation(){if(!confirm('Delete location and all data?'))return;const fs=(await A('features')).filter(f=>f.locationId===cLoc);for(const f of fs)await D('features',f.id);const ss=(await A('sessions')).filter(s=>s.locationId===cLoc);for(const s of ss){const rs=(await A('readings')).filter(r=>r.sessionId===s.id);for(const r of rs)await D('readings',r.id);const gs=(await A('groups')).filter(g=>g.sessionId===s.id);for(const g of gs)await D('groups',g.id);await D('sessions',s.id)}await D('locations',cLoc);if(cSes&&cSes.locationId===cLoc){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}nav('client');toast('Deleted')}
 
 // === FEATURES ===
-function openAddFeature(){eFeat=null;document.getElementById('fsTitle').textContent='Add Feature';document.getElementById('fIdIn').value='';document.getElementById('fLat').value='';document.getElementById('fLng').value='';document.getElementById('fDelBtn').style.display='none';document.querySelectorAll('#fType .ropt').forEach(r=>r.classList.remove('sel'));document.querySelector('#fType [data-value="meter"]').classList.add('sel');document.getElementById('fsBack').onclick=()=>nav('location');nav('feature-setup');setTimeout(()=>initSMap(),100)}
-async function openFS(id){const f=await G('features',id);eFeat=id;document.getElementById('fsTitle').textContent='Edit Feature';document.getElementById('fIdIn').value=f.featureId;document.getElementById('fLat').value=f.lat||'';document.getElementById('fLng').value=f.lng||'';document.getElementById('fDelBtn').style.display='block';document.querySelectorAll('#fType .ropt').forEach(r=>r.classList.remove('sel'));document.querySelector('#fType [data-value="'+f.type+'"]').classList.add('sel');document.getElementById('fsBack').onclick=()=>nav('location');nav('feature-setup');setTimeout(()=>initSMap(f.lat,f.lng),100)}
+function openAddFeature(){eFeat=null;document.getElementById('fsTitle').textContent='Add Feature';document.getElementById('fIdIn').value='';document.getElementById('fLat').value='';document.getElementById('fLng').value='';document.getElementById('fDelBtn').style.display='none';document.querySelectorAll('#fType .ropt').forEach(r=>r.classList.remove('sel'));document.querySelector('#fType [data-value="meter"]').classList.add('sel');customFields=[];renderCustomFields();togCustomFields();document.getElementById('fCustomLabel').value='';document.getElementById('fsBack').onclick=()=>nav('location');nav('feature-setup');setTimeout(()=>initSMap(),100);loadGroupCheckboxes(cLoc,null)}
+async function openFS(id){const f=await G('features',id);eFeat=id;document.getElementById('fsTitle').textContent='Edit Feature';document.getElementById('fIdIn').value=f.featureId;document.getElementById('fLat').value=f.lat||'';document.getElementById('fLng').value=f.lng||'';document.getElementById('fDelBtn').style.display='block';document.querySelectorAll('#fType .ropt').forEach(r=>r.classList.remove('sel'));document.querySelector('#fType [data-value="'+f.type+'"]').classList.add('sel');customFields=f.customFields||[];document.getElementById('fCustomLabel').value=f.customLabel||'';renderCustomFields();togCustomFields();document.getElementById('fsBack').onclick=()=>nav('location');nav('feature-setup');setTimeout(()=>initSMap(f.lat,f.lng),100);loadGroupCheckboxes(f.locationId,f.id)}
 function initSMap(lat,lng){const w=document.getElementById('setupMapWrap');if(sMap){sMap.remove();sMap=null}const c=lat&&lng?[lat,lng]:[21.45,-158.0];const z=lat&&lng?16:10;sMap=L.map(w).setView(c,z);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(sMap);sMkr=lat&&lng?L.marker([lat,lng]).addTo(sMap):null;sMap.on('click',e=>{document.getElementById('fLat').value=e.latlng.lat.toFixed(6);document.getElementById('fLng').value=e.latlng.lng.toFixed(6);if(sMkr)sMap.removeLayer(sMkr);sMkr=L.marker([e.latlng.lat,e.latlng.lng]).addTo(sMap)});setTimeout(()=>sMap.invalidateSize(),200)}
 function useGPS(){if(!navigator.geolocation){toast('GPS unavailable');return}navigator.geolocation.getCurrentPosition(p=>{const la=p.coords.latitude,ln=p.coords.longitude;document.getElementById('fLat').value=la.toFixed(6);document.getElementById('fLng').value=ln.toFixed(6);if(sMap){sMap.setView([la,ln],16);if(sMkr)sMap.removeLayer(sMkr);sMkr=L.marker([la,ln]).addTo(sMap)}toast('GPS set')},()=>toast('GPS failed'),{enableHighAccuracy:true})}
 function clearPin(){document.getElementById('fLat').value='';document.getElementById('fLng').value='';if(sMkr&&sMap){sMap.removeLayer(sMkr);sMkr=null}}
-async function saveFeature(){const fid=document.getElementById('fIdIn').value.trim();if(!fid){toast('Enter ID');return}const tp=document.querySelector('#fType .ropt.sel');await P('features',{id:eFeat||uid(),locationId:cLoc,type:tp.dataset.value,featureId:fid,lat:parseFloat(document.getElementById('fLat').value)||null,lng:parseFloat(document.getElementById('fLng').value)||null});toast('Saved');nav('location')}
+async function loadGroupCheckboxes(locId,featId){
+  const grps=(await A('groups')).filter(g=>g.locationId===locId);
+  const el=document.getElementById('fGroupList');
+  const wrap=document.getElementById('fGroupAssign');
+  if(!grps.length){wrap.style.display='none';return}
+  wrap.style.display='block';
+  el.innerHTML=grps.map(g=>{
+    const checked=featId&&g.featureIds.includes(featId)?'checked':'';
+    return '<div class="cb-item"><input type="checkbox" id="fg_'+g.id+'" data-gid="'+g.id+'" '+checked+'><label for="fg_'+g.id+'">'+g.name+'</label></div>';
+  }).join('');
+}
+
+async function saveFeature(){const fid=document.getElementById('fIdIn').value.trim();if(!fid){toast('Enter ID');return}const tp=document.querySelector('#fType .ropt.sel');const data={id:eFeat||uid(),locationId:cLoc,type:tp.dataset.value,featureId:fid,lat:parseFloat(document.getElementById('fLat').value)||null,lng:parseFloat(document.getElementById('fLng').value)||null};if(tp.dataset.value==='custom'){data.customLabel=document.getElementById('fCustomLabel').value.trim()||'Custom';data.customFields=customFields.slice()}await P('features',data);
+// Update group memberships
+const grpChecks=document.querySelectorAll('#fGroupList input[data-gid]');
+for(const cb of grpChecks){const g=await G('groups',cb.dataset.gid);if(!g)continue;const idx=g.featureIds.indexOf(data.id);if(cb.checked&&idx===-1){g.featureIds.push(data.id);await P('groups',g)}else if(!cb.checked&&idx!==-1){g.featureIds.splice(idx,1);await P('groups',g)}}
+toast('Saved');nav('location')}
 async function deleteFeature(){if(!confirm('Delete?'))return;await D('features',eFeat);toast('Deleted');nav('location')}
 
 // === WEATHER ===
@@ -771,13 +847,20 @@ async function renderSes(){
     document.getElementById('sWD').textContent=ws.filter(w=>done.has(w.id)).length+'/'+ws.length;
     document.getElementById('sesMtrList').innerHTML=ms.map(m=>{const d=done.has(m.id);const r=sr.find(x=>x.featureId===m.id);return '<div class="li" onclick="openMtr(\''+m.id+'\')"><div><div class="li-id">'+m.featureId+'</div><div class="li-sub">'+(d?'Register: '+r.registerValue+' • '+r.photos.length+' photos':'Tap to record')+'</div></div><span class="badge '+(d?'b-done':'b-pend')+'">'+(d?'Done':'Pending')+'</span></div>'}).join('')||'<div class="empty"><p>No meters</p></div>';
     document.getElementById('sesWellList').innerHTML=ws.map(w=>{const d=done.has(w.id);const r=sr.find(x=>x.featureId===w.id);return '<div class="li" onclick="openWell2(\''+w.id+'\')"><div><div class="li-id">'+w.featureId+'</div><div class="li-sub">'+(d?'Depth: '+r.waterDepth+'ft • '+r.pumpStatus:'Tap to record')+'</div></div><span class="badge '+(d?'b-done':'b-pend')+'">'+(d?'Done':'Pending')+'</span></div>'}).join('')||'<div class="empty"><p>No wells</p></div>';
+    // Custom features
+    const cs=fs.filter(f=>f.type==='custom').sort((a,b)=>a.featureId.localeCompare(b.featureId));
+    if(cs.length){document.getElementById('sesCustomSection').style.display='block';document.getElementById('sesCustomTitle').textContent='Custom ('+cs.length+')';document.getElementById('sesCustomList').innerHTML=cs.map(c=>{const d=done.has(c.id);const r=sr.find(x=>x.featureId===c.id);return '<div class="li" onclick="openCustomCheck(\''+c.id+'\')"><div><div class="li-id">'+c.featureId+'</div><div class="li-sub">'+(c.customLabel||'Custom')+(d?' • '+r.photos.length+' photos':' • Tap to record')+'</div></div><span class="badge '+(d?'b-done':'b-pend')+'">'+(d?'Done':'Pending')+'</span></div>'}).join('')}else{document.getElementById('sesCustomSection').style.display='none'}
     // Groups
-    const grps=(await A('groups')).filter(g=>g.sessionId===cSes.id);
+    const grps=(await A('groups')).filter(g=>g.locationId===cSes.locationId);
     const grpEl=document.getElementById('sesGroupList');
     if(!grps.length){grpEl.innerHTML='<div class="empty" style="padding:12px"><p>No groups yet. Create a group to take shared photos across features.</p></div>'}
-    else{grpEl.innerHTML=grps.map(g=>{
+    else{
+      const grpReadings=rs.filter(r=>r.sessionId===cSes.id&&r.type==='group_photos');
+      grpEl.innerHTML=grps.map(g=>{
       const memberNames=g.featureIds.map(fid=>{const feat=fs.find(x=>x.id===fid);return feat?feat.featureId:'?'}).join(', ');
-      return '<div class="li" onclick="openGroup(\''+g.id+'\')"><div><div class="li-id">'+g.name+'</div><div class="li-sub">'+g.featureIds.length+' features • '+(g.photos?g.photos.length:0)+' photos</div><div class="li-sub" style="font-size:11px;margin-top:2px">'+memberNames+'</div></div><span class="chevron">›</span></div>'
+      const gr=grpReadings.find(r=>r.featureId===g.id);
+      const pc=gr&&gr.photos?gr.photos.length:0;
+      return '<div class="li" onclick="openGroup(\''+g.id+'\')"><div><div class="li-id">'+g.name+'</div><div class="li-sub">'+g.featureIds.length+' features • '+pc+' photos this session</div><div class="li-sub" style="font-size:11px;margin-top:2px">'+memberNames+'</div></div><span class="chevron">›</span></div>'
     }).join('')}
   }else{
     // Load generic reading
@@ -817,15 +900,85 @@ await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:
 
 // === CAMERA ===
 function capturePhoto(tgt){capTgt=tgt;document.getElementById('camIn').value='';document.getElementById('camIn').click()}
-document.getElementById('camIn').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){const img=new Image();img.onload=function(){const c=document.createElement('canvas');const M=1600;let w=img.width,h=img.height;if(w>M||h>M){if(w>h){h=h*M/w;w=M}else{w=w*M/h;h=M}}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);if(capTgt==='meter'){mPh.push(d);renderMP()}else if(capTgt==='well'){wPh.push(d);renderWP()}else if(capTgt==='register'){mPh.push(d);regP=d;renderMP();document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;setTimeout(()=>document.getElementById('mtrReg').focus(),300)}else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos()}};img.src=ev.target.result};r.readAsDataURL(f)});
+function selectFromLib(tgt){capTgt=tgt;document.getElementById('libIn').value='';document.getElementById('libIn').click()}
+function zoomRegPhoto(){if(!regP)return;document.getElementById('regZoomImg').src=regP;showM('regZoom')}
+
+// Library multi-select handler
+document.getElementById('libIn').addEventListener('change',function(e){
+  const files=e.target.files;if(!files.length)return;
+  let processed=0;
+  for(let fi=0;fi<files.length;fi++){
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const img=new Image();
+      img.onload=function(){
+        const c=document.createElement('canvas');const M=1600;let w=img.width,h=img.height;
+        if(w>M||h>M){if(w>h){h=h*M/w;w=M}else{w=w*M/h;h=M}}
+        c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+        const d=c.toDataURL('image/jpeg',0.8);
+        if(capTgt==='meter'){mPh.push(d);renderMP()}
+        else if(capTgt==='well'){wPh.push(d);renderWP()}
+        else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}
+        else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos()}
+        else if(capTgt==='custom'){custPh.push(d);renderCustPhotos()}
+        processed++;if(processed===files.length)toast(files.length+' photos added');
+      };img.src=ev.target.result;
+    };reader.readAsDataURL(files[fi]);
+  }
+});
+
+// Custom feature fields
+let customFields=[];
+function togCustomFields(){const tp=document.querySelector('#fType .ropt.sel');document.getElementById('customFieldsSetup').style.display=tp&&tp.dataset.value==='custom'?'block':'none'}
+function addCustomField(){const n=document.getElementById('newFieldName').value.trim(),t=document.getElementById('newFieldType').value;if(!n){toast('Enter field name');return}customFields.push({name:n,type:t,options:t==='select'?prompt('Enter options separated by commas (e.g. Low,Medium,High)')||'':''});document.getElementById('newFieldName').value='';renderCustomFields()}
+function renderCustomFields(){document.getElementById('customFieldList').innerHTML=customFields.map((f,i)=>'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:13px;font-weight:600;flex:1">'+f.name+' <span style="color:var(--dim);font-weight:400">('+f.type+')</span></span><button style="background:#fde8e8;border:none;color:var(--red);width:24px;height:24px;border-radius:6px;font-size:12px;cursor:pointer" onclick="customFields.splice('+i+',1);renderCustomFields()">✕</button></div>').join('')||'<div style="font-size:12px;color:var(--dim)">No custom fields yet.</div>'}
+
+// Quick add feature from session
+function quickAddFeature(){if(!cSes)return;cLoc=cSes.locationId;openAddFeature();document.getElementById('fsBack').onclick=()=>nav('session')}
+document.getElementById('camIn').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){const img=new Image();img.onload=function(){const c=document.createElement('canvas');const M=1600;let w=img.width,h=img.height;if(w>M||h>M){if(w>h){h=h*M/w;w=M}else{w=w*M/h;h=M}}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);if(capTgt==='meter'){mPh.push(d);renderMP()}else if(capTgt==='well'){wPh.push(d);renderWP()}else if(capTgt==='register'){mPh.push(d);regP=d;renderMP();document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;setTimeout(()=>document.getElementById('mtrReg').focus(),300)}else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos()}else if(capTgt==='custom'){custPh.push(d);renderCustPhotos()}};img.src=ev.target.result};r.readAsDataURL(f)});
+
+// === CUSTOM FEATURE CHECK ===
+async function openCustomCheck(fid){
+  cFeat=fid;const f=await G('features',fid);custPh=[];
+  document.getElementById('custT').textContent=(f.customLabel||'Custom')+': '+f.featureId;
+  document.getElementById('custNotes').value='';
+  // Build custom fields UI
+  const fieldsEl=document.getElementById('custFields');
+  const cfs=f.customFields||[];
+  fieldsEl.innerHTML=cfs.map((cf,i)=>{
+    if(cf.type==='text')return '<div class="fg"><label class="fl">'+cf.name+'</label><input type="text" class="fi" id="cf_'+i+'"></div>';
+    if(cf.type==='number')return '<div class="fg"><label class="fl">'+cf.name+'</label><input type="number" class="fi" id="cf_'+i+'" inputmode="decimal" step="any"></div>';
+    if(cf.type==='select'){const opts=cf.options.split(',').map(o=>o.trim()).filter(Boolean);return '<div class="fg"><label class="fl">'+cf.name+'</label><select class="fi" id="cf_'+i+'"><option value="">-- Select --</option>'+opts.map(o=>'<option value="'+o+'">'+o+'</option>').join('')+'</select></div>'}
+    return '';
+  }).join('');
+  // Load existing
+  const rs=await A('readings');const ex=rs.find(r=>r.sessionId===cSes.id&&r.featureId===fid);
+  if(ex){
+    custPh=ex.photos||[];
+    document.getElementById('custNotes').value=ex.notes||'';
+    if(ex.fieldValues){cfs.forEach((cf,i)=>{const el=document.getElementById('cf_'+i);if(el&&ex.fieldValues[cf.name]!=null)el.value=ex.fieldValues[cf.name]})}
+  }
+  renderCustPhotos();nav('custom');
+  setTimeout(()=>{const w=document.getElementById('custMap');if(vMap){vMap.remove();vMap=null}if(f.lat&&f.lng){w.style.display='block';vMap=L.map(w).setView([f.lat,f.lng],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(vMap);L.marker([f.lat,f.lng]).addTo(vMap).bindPopup(f.featureId).openPopup();setTimeout(()=>vMap.invalidateSize(),200)}else{w.style.display='none'}},100);
+}
+function renderCustPhotos(){document.getElementById('custPhotos').innerHTML=custPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="custPh.splice('+i+',1);renderCustPhotos()">✕</button></div>').join('');document.getElementById('custPC').textContent=custPh.length?custPh.length+' photo'+(custPh.length>1?'s':''):''}
+async function saveCustom(){
+  const f=await G('features',cFeat);const cfs=f.customFields||[];
+  const fieldValues={};cfs.forEach((cf,i)=>{const el=document.getElementById('cf_'+i);if(el)fieldValues[cf.name]=el.value});
+  await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'custom',customLabel:f.customLabel||'Custom',photos:custPh,fieldValues,notes:document.getElementById('custNotes').value,timestamp:Date.now()});
+  toast('Saved');nav('session');
+}
 
 // === GROUPS ===
-async function openCreateGroup(){
-  if(!cSes)return;
+let grpCreateContext='location'; // 'location' or 'session'
+
+function openCreateLocGroup(){grpCreateContext='location';openCreateGroupUI(cLoc)}
+function openCreateGroup(){if(!cSes)return;grpCreateContext='session';openCreateGroupUI(cSes.locationId)}
+
+async function openCreateGroupUI(locId){
   document.getElementById('grpNameIn').value='';
-  const fs=(await A('features')).filter(f=>f.locationId===cSes.locationId);
-  const el=document.getElementById('grpFeatSelect');
-  el.innerHTML=fs.sort((a,b)=>a.type.localeCompare(b.type)||a.featureId.localeCompare(b.featureId)).map(f=>
+  const fs=(await A('features')).filter(f=>f.locationId===locId);
+  document.getElementById('grpFeatSelect').innerHTML=fs.sort((a,b)=>a.type.localeCompare(b.type)||a.featureId.localeCompare(b.featureId)).map(f=>
     '<div class="feat-sel-item" onclick="this.classList.toggle(\'checked\');this.querySelector(\'input\').checked=this.classList.contains(\'checked\')"><input type="checkbox" value="'+f.id+'" id="gfs_'+f.id+'"><label for="gfs_'+f.id+'">'+f.featureId+'</label><span class="feat-sel-type">'+f.type+'</span></div>'
   ).join('');
   showM('grpModal');
@@ -835,47 +988,74 @@ async function confirmCreateGroup(){
   if(!name){toast('Enter group name');return}
   const checked=[...document.querySelectorAll('#grpFeatSelect input:checked')].map(cb=>cb.value);
   if(checked.length<2){toast('Select at least 2 features');return}
-  const grp={id:uid(),sessionId:cSes.id,name:name,featureIds:checked,photos:[],notes:'',createdAt:Date.now()};
+  const locId=grpCreateContext==='session'?cSes.locationId:cLoc;
+  const grp={id:uid(),locationId:locId,name:name,featureIds:checked,createdAt:Date.now()};
   await P('groups',grp);
-  closeM('grpModal');renderSes();toast('Group created');
+  closeM('grpModal');
+  if(grpCreateContext==='session')renderSes();
+  else renderLoc();
+  toast('Group created');
 }
+
 async function openGroup(id){
   curGroupId=id;
   const g=await G('groups',id);
   if(!g)return;
-  grpPh=g.photos||[];
+  // Load session-specific photos from readings
+  const rs=await A('readings');
+  const sesGrp=rs.find(r=>r.sessionId===cSes.id&&r.featureId===id&&r.type==='group_photos');
+  grpPh=sesGrp?sesGrp.photos||[]:[];
   document.getElementById('grpTitle').textContent=g.name;
-  document.getElementById('grpNotes').value=g.notes||'';
-  // Render members
+  document.getElementById('grpNotes').value=sesGrp?sesGrp.notes||'':'';
   const fs=await A('features');
-  const el=document.getElementById('grpMemberList');
-  el.innerHTML=g.featureIds.map(fid=>{const f=fs.find(x=>x.id===fid);return '<span class="chip">'+(f?f.featureId+' <span style="opacity:.6">('+f.type+')</span>':'?')+'</span>'}).join('');
+  document.getElementById('grpMemberList').innerHTML=g.featureIds.map(fid=>{const f=fs.find(x=>x.id===fid);return '<span class="chip">'+(f?f.featureId+' <span style="opacity:.6">('+f.type+')</span>':'?')+'</span>'}).join('');
   renderGrpPhotos();
   nav('group');
 }
 function renderGrpPhotos(){
-  const el=document.getElementById('grpPhotos');
-  el.innerHTML=grpPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="grpPh.splice('+i+',1);renderGrpPhotos()">✕</button></div>').join('');
+  document.getElementById('grpPhotos').innerHTML=grpPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="grpPh.splice('+i+',1);renderGrpPhotos()">✕</button></div>').join('');
   document.getElementById('grpPC').textContent=grpPh.length?grpPh.length+' group photo'+(grpPh.length>1?'s':''):'';
 }
 async function saveGroup(){
-  const g=await G('groups',curGroupId);
-  g.photos=grpPh;
-  g.notes=document.getElementById('grpNotes').value;
-  await P('groups',g);
+  // Save session photos to readings
+  await P('readings',{id:cSes.id+'_grp_'+curGroupId,sessionId:cSes.id,featureId:curGroupId,type:'group_photos',photos:grpPh,notes:document.getElementById('grpNotes').value,timestamp:Date.now()});
   toast('Group saved');nav('session');
 }
 async function deleteGroup(){
   if(!confirm('Delete this group? Feature data is not affected.'))return;
   await D('groups',curGroupId);
-  toast('Group deleted');nav('session');
+  // Also clean up any session readings for this group
+  const rs=(await A('readings')).filter(r=>r.featureId===curGroupId&&r.type==='group_photos');
+  for(const r of rs)await D('readings',r.id);
+  toast('Group deleted');
+  if(cSes)nav('session');else nav('location');
 }
-// Helper: get group photos that apply to a feature in a session
+
+// Helper: get group photos for a feature in a session
 async function getGrpPhotos(sessionId,featureId){
-  const grps=(await A('groups')).filter(g=>g.sessionId===sessionId&&g.featureIds.includes(featureId));
+  // Find all groups this feature belongs to
+  const grps=(await A('groups')).filter(g=>g.featureIds&&g.featureIds.includes(featureId));
   let photos=[];
-  for(const g of grps){photos=photos.concat(g.photos||[])}
+  const rs=await A('readings');
+  for(const g of grps){
+    const sesGrp=rs.find(r=>r.sessionId===sessionId&&r.featureId===g.id&&r.type==='group_photos');
+    if(sesGrp&&sesGrp.photos)photos=photos.concat(sesGrp.photos);
+  }
   return photos;
+}
+
+// Render groups in location detail
+async function renderLocGroups(){
+  const grps=(await A('groups')).filter(g=>g.locationId===cLoc);
+  const el=document.getElementById('locGroupList');
+  const emp=document.getElementById('locGroupEmpty');
+  const fs=await A('features');
+  if(!grps.length){el.innerHTML='';emp.style.display='block';return}
+  emp.style.display='none';
+  el.innerHTML=grps.map(g=>{
+    const members=g.featureIds.map(fid=>{const f=fs.find(x=>x.id===fid);return f?f.featureId:'?'}).join(', ');
+    return '<div class="li"><div style="flex:1"><div class="li-id">'+g.name+'</div><div class="li-sub">'+g.featureIds.length+' features: '+members+'</div></div><button style="background:#fde8e8;border:none;color:var(--red);width:28px;height:28px;border-radius:6px;font-size:13px;cursor:pointer;flex-shrink:0" onclick="curGroupId=\''+g.id+'\';deleteGroup()">✕</button></div>';
+  }).join('');
 }
 
 // === EXPORT ===
@@ -896,17 +1076,22 @@ async function expPDF(mode){
   const sid=gES();if(!sid)return;
   toast('Generating PDF...');
   const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
   const s=await G('sessions',sid);
   const settings=await getSettings();
   const rs=await A('readings');const fs=await A('features');
   const mr=rs.filter(r=>r.sessionId===sid&&r.type==='meter');
   const wr=rs.filter(r=>r.sessionId===sid&&r.type==='well');
+  const cr=rs.filter(r=>r.sessionId===sid&&r.type==='custom');
   const gr=rs.find(r=>r.sessionId===sid&&r.type==='generic');
-  const pw=215.9,ph=279.4,mg=15;let y=mg;
+  let jpgQuality=0.6;
+
+  async function buildPDF(q){
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
+  const pw=215.9,ph=279.4,mg=15,cw=pw-mg*2;let y=mg;
+  const iw=(cw-6)/3,ih=iw*0.75; // 3-col grid: photo width, height
 
   function addHeader(){
-    doc.setFillColor(45,90,39);doc.rect(0,0,pw,28,  'F');
+    doc.setFillColor(45,90,39);doc.rect(0,0,pw,28,'F');
     doc.setTextColor(255);doc.setFontSize(14);doc.setFont(undefined,'bold');
     doc.text('AgriWorks Crop Solutions | ACS Environmental',pw/2,12,{align:'center'});
     doc.setFontSize(10);doc.setFont(undefined,'normal');
@@ -914,88 +1099,102 @@ async function expPDF(mode){
     doc.setTextColor(0);y=35;
   }
   function checkPage(need){if(y+need>ph-mg){doc.addPage();addHeader();return true}return false}
-  function addField(label,val){if(!val)return;checkPage(8);doc.setFontSize(9);doc.setFont(undefined,'bold');doc.text(label+': ',mg,y);doc.setFont(undefined,'normal');doc.text(String(val),mg+doc.getTextWidth(label+': '),y);y+=6}
+  function addField(label,val){if(!val)return;checkPage(8);doc.setFontSize(9);doc.setFont(undefined,'bold');doc.text(label+': ',mg,y);doc.setFont(undefined,'normal');const maxW=cw-doc.getTextWidth(label+': ');const lines=doc.splitTextToSize(String(val),maxW);doc.text(lines,mg+doc.getTextWidth(label+': '),y);y+=lines.length*5}
   function addSection(title){checkPage(14);y+=4;doc.setFontSize(12);doc.setFont(undefined,'bold');doc.setTextColor(45,90,39);doc.text(title,mg,y);y+=2;doc.setDrawColor(45,90,39);doc.line(mg,y,pw-mg,y);y+=6;doc.setTextColor(0)}
 
+  function addPhotoGrid(pics,labels){
+    for(let i=0;i<pics.length;i++){
+      const col=i%3;
+      if(col===0)checkPage(ih+8);
+      const x=mg+col*(iw+3);
+      try{doc.addImage(pics[i],'JPEG',x,y,iw,ih,undefined,'FAST',0)}catch(e){}
+      if(labels&&labels[i]){doc.setFontSize(7);doc.setFont(undefined,'normal');doc.setTextColor(100);doc.text(labels[i],x,y+ih+3);doc.setTextColor(0)}
+      if(col===2||i===pics.length-1)y+=ih+6;
+    }
+  }
+
   addHeader();
-  // Session info
   addField('Client',s.clientName);addField('Location',s.locationName);addField('Service Type',s.serviceType);
   addField('Date',fD(s.date));addField('Start Time',fT(s.startTime));
   if(s.endTime){addField('End Time',fT(s.endTime));const dur=Math.round((s.endTime-s.startTime)/60000);addField('Duration',Math.floor(dur/60)+'h '+dur%60+'m')}
   if(s.temperature)addField('Temperature',s.temperature+'°F');
   if(s.weather)addField('Weather',WX_LABELS[s.weather]||s.weather);
   if(s.reportingPeriod)addField('Reporting Period',fmtRP(s.reportingPeriod));
-  if(s.personnel&&s.personnel.length){const pStr=s.personnel.map(sp=>{const p=settings.personnel.find(x=>x.id===sp.personId);return (p?p.firstName+' '+p.lastName:'?')+' ('+sp.role+')'}).join(', ');addField('Personnel',pStr)}
+  if(s.personnel&&s.personnel.length){addField('Personnel',s.personnel.map(sp=>{const p=settings.personnel.find(x=>x.id===sp.personId);return(p?p.firstName+' '+p.lastName:'?')+' ('+sp.role+')'}).join(', '))}
   if(s.startNotes)addField('Start Notes',s.startNotes);
   if(s.endNotes)addField('Closing Notes',s.endNotes);
 
-  // Meters
   if(mr.length){
     addSection('Water Meters');
-    const mData=mr.sort((a,b)=>{const fa=fs.find(f=>f.id===a.featureId),fb=fs.find(f=>f.id===b.featureId);return(fa?.featureId||'').localeCompare(fb?.featureId||'')}).map(r=>{const f=fs.find(x=>x.id===r.featureId);return[(f?f.featureId:''),r.registerValue,checksToStr(r.checks),r.notes||'']});
+    const mData=mr.sort((a,b)=>{const fa=fs.find(f=>f.id===a.featureId),fb=fs.find(f=>f.id===b.featureId);return(fa?.featureId||'').localeCompare(fb?.featureId||'')}).map(r=>{const f=fs.find(x=>x.id===r.featureId);return[(f?f.featureId:''),r.registerValue,checksToStr(r.checks),(r.notes||'').substring(0,80)]});
     doc.autoTable({startY:y,head:[['Meter ID','Register','Conditions','Notes']],body:mData,margin:{left:mg,right:mg},styles:{fontSize:8},headStyles:{fillColor:[45,90,39]},theme:'grid'});
     y=doc.lastAutoTable.finalY+6;
-
     if(mode==='full'){
       for(const r of mr){
         const f=fs.find(x=>x.id===r.featureId);
         const gp=await getGrpPhotos(sid,r.featureId);
-        if(r.photos.length||r.registerPhoto||gp.length){
-          checkPage(60);
-          doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text('Meter: '+(f?f.featureId:''),mg,y);y+=6;
-          const allPics=[...(r.registerPhoto?[r.registerPhoto]:[]),...r.photos.filter(p=>p!==r.registerPhoto),...gp];
-          const regCount=r.registerPhoto?1:0;const ownCount=r.photos.filter(p=>p!==r.registerPhoto).length;
-          for(let i=0;i<allPics.length;i++){
-            checkPage(55);
-            try{doc.addImage(allPics[i],'JPEG',mg,y,50,37.5);
-            if(i===0&&r.registerPhoto)doc.text('Register Photo',mg+52,y+6);
-            else if(i>=regCount+ownCount)doc.text('Group Photo',mg+52,y+6);
-            y+=40}catch(e){}
-          }
-          y+=4;
+        const allPics=[...(r.registerPhoto?[r.registerPhoto]:[]),...r.photos.filter(p=>p!==r.registerPhoto),...gp];
+        if(allPics.length){
+          checkPage(20);doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text('Meter: '+(f?f.featureId:''),mg,y);y+=5;
+          const labels=allPics.map((p,i)=>{if(i===0&&r.registerPhoto)return'Register';if(i>=r.photos.length)return'Group';return''});
+          addPhotoGrid(allPics,labels);
         }
       }
     }
   }
 
-  // Wells
   if(wr.length){
     addSection('Wells');
-    const wData=wr.map(r=>{const f=fs.find(x=>x.id===r.featureId);return[(f?f.featureId:''),r.pumpStatus,r.waterDepth,(r.sampleTemp||''),(r.conductivityMS!=null?r.conductivityMS.toFixed(4):''),(r.sampleTime||''),checksToStr(r.checks),r.notes||'']});
-    doc.autoTable({startY:y,head:[['Well ID','Pump','Depth(ft)','Temp(F)','Cond(mS)','Time','Conditions','Notes']],body:wData,margin:{left:mg,right:mg},styles:{fontSize:7},headStyles:{fillColor:[45,90,39]},theme:'grid'});
+    const wData=wr.map(r=>{const f=fs.find(x=>x.id===r.featureId);return[(f?f.featureId:''),r.pumpStatus,r.waterDepth,(r.sampleTemp||''),(r.conductivityMS!=null?r.conductivityMS.toFixed(4):''),(r.sampleTime||''),checksToStr(r.checks),(r.notes||'').substring(0,60)]});
+    doc.autoTable({startY:y,head:[['Well','Pump','Depth','Temp','Cond(mS)','Time','Conditions','Notes']],body:wData,margin:{left:mg,right:mg},styles:{fontSize:7},headStyles:{fillColor:[45,90,39]},theme:'grid'});
     y=doc.lastAutoTable.finalY+6;
-
     if(mode==='full'){
       for(const r of wr){
         const f=fs.find(x=>x.id===r.featureId);
         const gp=await getGrpPhotos(sid,r.featureId);
-        if(r.photos.length||gp.length){
-          checkPage(60);
-          doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text('Well: '+(f?f.featureId:''),mg,y);y+=6;
-          const allPics=[...r.photos,...gp];
-          for(let i=0;i<allPics.length;i++){
-            checkPage(55);
-            try{doc.addImage(allPics[i],'JPEG',mg,y,50,37.5);
-            if(i>=r.photos.length)doc.text('Group Photo',mg+52,y+6);
-            y+=40}catch(e){}
-          }
-          y+=4;
+        const allPics=[...r.photos,...gp];
+        if(allPics.length){
+          checkPage(20);doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text('Well: '+(f?f.featureId:''),mg,y);y+=5;
+          const labels=allPics.map((p,i)=>i>=r.photos.length?'Group':'');
+          addPhotoGrid(allPics,labels);
         }
       }
     }
   }
 
-  // Generic service notes
-  if(gr){
-    addSection('Service Notes');
-    if(gr.notes){const lines=doc.splitTextToSize(gr.notes,pw-mg*2);checkPage(lines.length*5);doc.setFontSize(9);doc.setFont(undefined,'normal');doc.text(lines,mg,y);y+=lines.length*5+4}
-    if(mode==='full'&&gr.photos&&gr.photos.length){
-      for(let i=0;i<gr.photos.length;i++){checkPage(55);try{doc.addImage(gr.photos[i],'JPEG',mg,y,50,37.5);y+=40}catch(e){}}
+  if(cr.length){
+    addSection('Custom Features');
+    for(const r of cr){
+      const f=fs.find(x=>x.id===r.featureId);
+      checkPage(16);doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text((r.customLabel||'Custom')+': '+(f?f.featureId:''),mg,y);y+=5;
+      if(r.fieldValues){doc.setFontSize(8);doc.setFont(undefined,'normal');Object.entries(r.fieldValues).forEach(([k,v])=>{if(v){checkPage(6);doc.text(k+': '+v,mg+4,y);y+=4}})}
+      if(r.notes){checkPage(6);doc.setFontSize(8);doc.text('Notes: '+r.notes.substring(0,120),mg+4,y);y+=5}
+      if(mode==='full'&&r.photos&&r.photos.length){addPhotoGrid(r.photos)}
+      y+=4;
     }
   }
 
+  if(gr){
+    addSection('Service Notes');
+    if(gr.notes){const lines=doc.splitTextToSize(gr.notes,cw);checkPage(lines.length*5);doc.setFontSize(9);doc.setFont(undefined,'normal');doc.text(lines,mg,y);y+=lines.length*5+4}
+    if(mode==='full'&&gr.photos&&gr.photos.length){addPhotoGrid(gr.photos)}
+  }
+
+  return doc;
+  }// end buildPDF
+
+  let doc=await buildPDF(jpgQuality);
+  let blob=doc.output('blob');
+  // Compress if over 8MB
+  if(blob.size>8*1024*1024&&mode==='full'){
+    toast('Compressing PDF...');
+    jpgQuality=0.3;
+    doc=await buildPDF(jpgQuality);
+    blob=doc.output('blob');
+  }
+  const sizeMB=(blob.size/1024/1024).toFixed(1);
   doc.save('Field_Report_'+s.clientName+'_'+s.date+(mode==='full'?'_Full':'')+'.pdf');
-  toast('PDF downloaded');
+  toast('PDF downloaded ('+sizeMB+' MB)');
 }
 
 // === PACKAGE EXPORT ===
@@ -1158,1108 +1357,6 @@ async function importData(event){
     if(isFull)msg+=', '+sA+' sessions, '+rA+' readings, '+gA+' groups';
     if(cS)msg+=' ('+cS+' duplicate clients skipped)';
     status.innerHTML='<span style="color:var(--ok)">✓ Imported: '+msg+'</span>';
-    renderClis();renderSettings();
-    toast('Import complete');
-  }catch(e){
-    status.innerHTML='<span style="color:var(--red)">Error: '+e.message+'</span>';
-  }
-  event.target.value='';
-}
-
-// === CLEAR ALL ===
-async function clearAll(){if(!confirm('Delete ALL data?'))return;if(!confirm('Absolutely sure?'))return;await CLR('clients');await CLR('locations');await CLR('features');await CLR('sessions');await CLR('readings');await CLR('groups');cSes=null;localStorage.removeItem('lastSes4');updSesUI();nav('clients');toast('All data cleared')}
-
-init();
-</script>
-</body></html>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<title>ACS Field Monitor</title>
-<style>
-:root{--g:#2d5a27;--gl:#3d7a35;--gd:#1e3d1a;--bg:#f4f3f0;--card:#fff;--txt:#1a1a1a;--dim:#6b6b6b;--bdr:#e0ddd8;--red:#c0392b;--amb:#d4890a;--blue:#2471a3;--ok:#27ae60;--r:12px;--sab:env(safe-area-inset-bottom,0px);--sat:env(safe-area-inset-top,20px)}
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;overflow-x:hidden;padding-bottom:calc(70px + var(--sab))}
-.hdr{background:var(--g);color:#fff;padding:12px 16px;padding-top:calc(12px + var(--sat));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.hdr h1{font-size:17px;font-weight:700;letter-spacing:.5px}
-.hdr-sub{font-size:11px;opacity:.8}
-.hdr-btn{background:rgba(255,255,255,.15);border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
-.sbar{background:var(--gd);color:#fff;padding:8px 16px;font-size:12px;display:flex;justify-content:space-between;align-items:center}
-.sbar strong{font-weight:700}
-.tbar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bdr);display:flex;z-index:100;padding-bottom:var(--sab)}
-.tbar button{flex:1;border:none;background:none;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--dim);cursor:pointer;font-weight:500}
-.tbar button.active{color:var(--g)}
-.tbar button svg{width:22px;height:22px}
-.vw{display:none;padding:16px}.vw.active{display:block}
-.card{background:var(--card);border-radius:var(--r);border:1px solid var(--bdr);padding:16px;margin-bottom:12px}
-.card-t{font-size:13px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.stat{background:var(--card);border-radius:var(--r);border:1px solid var(--bdr);padding:14px;text-align:center}
-.stat-n{font-size:28px;font-weight:800;color:var(--g)}
-.stat-l{font-size:11px;color:var(--dim);font-weight:600;margin-top:2px}
-.li{background:var(--card);border-radius:var(--r);border:1px solid var(--bdr);padding:14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .1s}
-.li:active{background:#f0f0ec}
-.li-id{font-weight:700;font-size:15px}
-.li-sub{font-size:12px;color:var(--dim);margin-top:2px}
-.badge{padding:3px 8px;border-radius:16px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
-.b-pend{background:#fef3e2;color:var(--amb)}
-.b-done{background:#e8f5e9;color:var(--ok)}
-.b-active{background:#e3f2fd;color:var(--blue)}
-.b-complete{background:#e8f5e9;color:var(--ok)}
-.chevron{color:var(--dim);font-size:20px}
-.fg{margin-bottom:14px}
-.fl{font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:block}
-.fi{width:100%;padding:13px;border-radius:10px;border:2px solid var(--bdr);font-size:16px;font-family:inherit;background:#fff;-webkit-appearance:none;appearance:none}
-.fi:focus{outline:none;border-color:var(--g)}
-.fi-sm{padding:10px;font-size:14px}
-textarea.fi{min-height:70px;resize:vertical}
-select.fi{background:#fff}
-.btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-p{background:var(--g);color:#fff}.btn-p:active{background:var(--gd)}
-.btn-s{background:#fff;color:var(--g);border:2px solid var(--g)}
-.btn-d{background:var(--red);color:#fff}
-.btn-w{background:var(--amb);color:#fff}
-.btn-complete{background:var(--blue);color:#fff}
-.btn+.btn{margin-top:8px}
-.btn-sm{width:auto;padding:10px 18px;font-size:13px}
-.btn-row{display:flex;gap:8px}.btn-row .btn{flex:1}
-.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
-.pthumb{aspect-ratio:1;border-radius:8px;overflow:hidden;position:relative;border:1px solid var(--bdr)}
-.pthumb img{width:100%;height:100%;object-fit:cover}
-.pthumb .pr{position:absolute;top:3px;right:3px;width:22px;height:22px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.cam-btn-big{padding:16px;border-radius:10px;border:2px dashed var(--g);background:#f0f7ef;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;color:var(--g);font-size:15px;font-weight:700;margin-bottom:10px}
-.cam-btn-big svg{width:28px;height:28px}
-.rgroup{display:flex;gap:6px;flex-wrap:wrap}
-.ropt{flex:1;min-width:80px;padding:12px 6px;border-radius:10px;border:2px solid var(--bdr);background:#fff;text-align:center;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
-.ropt.sel{border-color:var(--g);background:#e8f5e9;color:var(--gd)}
-.dhdr{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-.back{background:none;border:none;font-size:26px;cursor:pointer;color:var(--g);padding:4px}
-.dtitle{font-size:20px;font-weight:800}
-.map-wrap{height:200px;border-radius:var(--r);overflow:hidden;margin-bottom:14px;border:1px solid var(--bdr)}
-.map-wrap-setup{height:250px}
-.section-box{background:#f8faf8;border:1px solid var(--g);border-radius:var(--r);padding:14px;margin-bottom:14px}
-.section-box .card-t{color:var(--g)}
-.conv-row{display:flex;align-items:center;gap:8px;margin-top:6px}
-.conv-val{background:#e8f5e9;padding:10px 14px;border-radius:8px;font-weight:700;color:var(--g);font-size:16px;flex:1;text-align:center}
-.conv-label{font-size:12px;color:var(--dim);font-weight:600}
-.empty{text-align:center;padding:30px 20px;color:var(--dim)}
-.empty p{font-size:14px}
-.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:var(--gd);color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.3);max-width:90%}
-.toast.show{opacity:1}
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150;display:none;align-items:flex-end;justify-content:center}
-.modal-bg.show{display:flex}
-.modal{background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:500px;max-height:85vh;overflow-y:auto;padding-bottom:calc(20px + var(--sab))}
-.modal h2{font-size:18px;margin-bottom:14px}
-.unit-input-wrap{display:flex;gap:8px}.unit-input-wrap .fi{flex:1}.unit-input-wrap select.fi{flex:0 0 80px;padding:13px 8px}
-/* CHECKBOXES */
-.cb-group{margin-top:6px}
-.cb-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr)}
-.cb-item:last-child{border-bottom:none}
-.cb-item input[type=checkbox]{width:22px;height:22px;accent-color:var(--g);flex-shrink:0}
-.cb-item label{font-size:14px;font-weight:500;cursor:pointer}
-/* PERSONNEL CHIPS */
-.chip-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.chip{background:#e8f5e9;color:var(--gd);padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
-.chip button{background:none;border:none;color:var(--gd);font-size:14px;cursor:pointer;padding:0}
-/* PERSON LIST IN SETTINGS */
-.person-item{background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
-.person-item .pi-name{font-weight:700;font-size:14px}
-.person-item .pi-detail{font-size:11px;color:var(--dim)}
-.person-item button{background:#fde8e8;border:none;color:var(--red);width:28px;height:28px;border-radius:6px;font-size:14px;cursor:pointer}
-/* ROLE TAGS */
-.role-tag{display:inline-block;background:var(--bg);border:1px solid var(--bdr);padding:4px 10px;border-radius:6px;font-size:12px;margin:2px}
-.role-tag .rt-x{cursor:pointer;margin-left:4px;color:var(--red)}
-/* WEATHER GRID */
-.wg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.wg .ropt{min-width:auto;font-size:11px;padding:10px 4px}
-/* COLLAPSIBLE */
-.coll-toggle{cursor:pointer;display:flex;justify-content:space-between;align-items:center}
-.coll-content{display:none}.coll-content.open{display:block}
-/* SESSION INFO */
-.ses-info{font-size:13px;color:var(--dim);line-height:1.8}
-.ses-info strong{color:var(--txt)}
-/* GROUPS */
-.grp-badge{background:#e3f2fd;color:var(--blue);padding:3px 8px;border-radius:16px;font-size:10px;font-weight:700}
-.grp-members{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-.grp-members .chip{font-size:11px;padding:4px 10px}
-.feat-sel-item{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer}
-.feat-sel-item.checked{border-color:var(--g);background:#f0f7ef}
-.feat-sel-item input[type=checkbox]{width:20px;height:20px;accent-color:var(--g);flex-shrink:0}
-.feat-sel-item label{font-size:14px;font-weight:600;cursor:pointer;flex:1}
-.feat-sel-item .feat-sel-type{font-size:11px;color:var(--dim);font-weight:500}
-</style>
-</head>
-<body>
-<div class="toast" id="toast"></div>
-<div class="hdr">
-  <div><h1>ACS FIELD MONITOR</h1><div class="hdr-sub" id="hdrSub">Setup your clients to begin</div></div>
-  <button class="hdr-btn" onclick="showM('sesModal')">Sessions</button>
-</div>
-<div class="sbar" id="sbar" style="display:none">
-  <span><strong id="sbarClient"></strong> — <strong id="sbarLoc"></strong></span>
-  <span id="sbarDate"></span>
-</div>
-
-<!-- CLIENTS -->
-<div class="vw active" id="v-clients">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <h2 style="font-size:20px;font-weight:800">Clients</h2>
-    <button class="btn btn-p btn-sm" onclick="openAddClient()">+ Add Client</button>
-  </div>
-  <div id="clientList"></div>
-  <div id="clientEmpty" class="empty"><p>No clients yet. Add a client to get started.</p></div>
-</div>
-
-<!-- CLIENT DETAIL -->
-<div class="vw" id="v-client">
-  <div class="dhdr"><button class="back" onclick="nav('clients')">‹</button><div class="dtitle" id="clientName"></div></div>
-  <div class="card" id="clientInfo"></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <h3 style="font-size:16px;font-weight:700">Locations</h3>
-    <button class="btn btn-p btn-sm" onclick="openAddLocation()">+ Add Location</button>
-  </div>
-  <div id="locList"></div><div id="locEmpty" class="empty"><p>No locations yet.</p></div>
-  <button class="btn btn-s" onclick="editClient()" style="margin-top:12px">Edit Client</button>
-  <button class="btn btn-d" onclick="deleteClient()" style="margin-top:8px;font-size:13px">Delete Client</button>
-</div>
-
-<!-- LOCATION DETAIL -->
-<div class="vw" id="v-location">
-  <div class="dhdr"><button class="back" onclick="nav('client')">‹</button><div class="dtitle" id="locName"></div></div>
-  <div class="card" id="locInfo"></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-    <h3 style="font-size:16px;font-weight:700">Features</h3>
-    <button class="btn btn-p btn-sm" onclick="openAddFeature()">+ Add</button>
-  </div>
-  <div id="featureList"></div><div id="featureEmpty" class="empty"><p>No meters or wells added yet.</p></div>
-  <div class="btn-row" style="margin-top:12px">
-    <button class="btn btn-s" onclick="editLocation()">Edit</button>
-    <button class="btn btn-d" onclick="deleteLocation()" style="font-size:13px">Delete</button>
-  </div>
-</div>
-
-<!-- FEATURE SETUP -->
-<div class="vw" id="v-feature-setup">
-  <div class="dhdr"><button class="back" id="fsBack">‹</button><div class="dtitle" id="fsTitle">Add Feature</div></div>
-  <div class="fg"><label class="fl">Type</label>
-    <div class="rgroup" id="fType">
-      <div class="ropt sel" onclick="selR(this,'fType')" data-value="meter">Meter</div>
-      <div class="ropt" onclick="selR(this,'fType')" data-value="well">Well</div>
-    </div>
-  </div>
-  <div class="fg"><label class="fl">Feature ID / Name</label><input type="text" class="fi" id="fIdIn" placeholder="e.g. 7575 or Well-A"></div>
-  <div class="fg">
-    <label class="fl">Location on Map (optional)</label>
-    <div class="btn-row" style="margin-bottom:8px">
-      <button class="btn btn-s btn-sm" onclick="useGPS()">📍 Use GPS</button>
-      <button class="btn btn-s btn-sm" onclick="clearPin()">Clear Pin</button>
-    </div>
-    <div class="map-wrap map-wrap-setup" id="setupMapWrap"></div>
-    <div style="display:flex;gap:8px;margin-top:6px">
-      <div class="fg" style="flex:1;margin-bottom:0"><label class="fl">Lat</label><input type="number" class="fi fi-sm" id="fLat" step="any"></div>
-      <div class="fg" style="flex:1;margin-bottom:0"><label class="fl">Lng</label><input type="number" class="fi fi-sm" id="fLng" step="any"></div>
-    </div>
-  </div>
-  <button class="btn btn-p" onclick="saveFeature()">Save Feature</button>
-  <button class="btn btn-d" id="fDelBtn" onclick="deleteFeature()" style="display:none;margin-top:8px;font-size:13px">Delete Feature</button>
-</div>
-
-<!-- SESSION VIEW -->
-<div class="vw" id="v-session">
-  <div id="noSes" class="empty"><p>No active session. Tap <strong>Sessions</strong> to start one.</p></div>
-  <div id="sesActive" style="display:none">
-    <!-- Session info card -->
-    <div class="card" id="sesInfoCard" style="cursor:pointer" onclick="toggleSesInfo()">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div class="card-t" style="margin-bottom:0">Session Details</div>
-        <span id="sesInfoChev" style="color:var(--dim)">▼</span>
-      </div>
-      <div class="coll-content" id="sesInfoBody"></div>
-    </div>
-    <!-- Hydrogeologic view -->
-    <div id="sesHydro">
-      <div class="stats">
-        <div class="stat"><div class="stat-n" id="sMD">0</div><div class="stat-l">Meters</div></div>
-        <div class="stat"><div class="stat-n" id="sWD">0</div><div class="stat-l">Wells</div></div>
-      </div>
-      <div class="card-t">Meters</div><div id="sesMtrList"></div>
-      <div class="card-t" style="margin-top:14px">Wells</div><div id="sesWellList"></div>
-      <!-- Groups -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;margin-bottom:10px">
-        <div class="card-t" style="margin-bottom:0">Groups</div>
-        <button class="btn btn-p btn-sm" onclick="openCreateGroup()">+ Create Group</button>
-      </div>
-      <div id="sesGroupList"></div>
-    </div>
-    <!-- Generic service view -->
-    <div id="sesGeneric" style="display:none">
-      <div class="card">
-        <div class="card-t">Service Notes</div>
-        <textarea class="fi" id="genNotes" placeholder="Document work performed, observations..." style="min-height:120px" oninput="autoSaveGeneric()"></textarea>
-      </div>
-      <div class="card">
-        <div class="card-t">Photos</div>
-        <div class="cam-btn-big" onclick="capturePhoto('generic')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          Take Photo
-        </div>
-        <div class="pgrid" id="genPhotos"></div>
-      </div>
-    </div>
-    <!-- Complete session button -->
-    <div id="sesCompleteArea" style="margin-top:16px">
-      <button class="btn btn-complete" onclick="startCompleteSession()">✓ Complete Session</button>
-    </div>
-    <div id="sesCompletedMsg" style="display:none;text-align:center;padding:12px;background:#e8f5e9;border-radius:var(--r);margin-top:12px">
-      <strong style="color:var(--ok)">✓ Session Completed</strong>
-      <div style="font-size:12px;color:var(--dim);margin-top:4px" id="sesCompTime"></div>
-    </div>
-  </div>
-</div>
-
-<!-- METER CHECK -->
-<div class="vw" id="v-meter">
-  <div class="dhdr"><button class="back" onclick="nav('session')">‹</button><div class="dtitle" id="mtrT">Meter</div></div>
-  <div class="map-wrap" id="mtrMap"></div>
-  <div class="card">
-    <div class="card-t">📸 Photos</div>
-    <div class="cam-btn-big" onclick="capturePhoto('meter')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      Take Photo
-    </div>
-    <div class="pgrid" id="mtrPhotos"></div>
-    <div id="mtrPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
-  </div>
-  <div class="section-box">
-    <div class="card-t">📋 Capture Register Value</div>
-    <p style="font-size:13px;color:var(--dim);margin-bottom:10px">Select a photo showing the register, or take a new closeup, then enter the reading.</p>
-    <div class="btn-row" style="margin-bottom:10px">
-      <button class="btn btn-s btn-sm" onclick="startRegSelect()">Select from Photos</button>
-      <button class="btn btn-p btn-sm" onclick="capturePhoto('register')">Take Closeup</button>
-    </div>
-    <div id="regSelArea" style="display:none;margin-bottom:10px">
-      <p class="fl">Register Photo ✓</p>
-      <div style="width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid var(--g)"><img id="regImg" style="width:100%;height:100%;object-fit:cover"></div>
-    </div>
-    <div class="fg"><label class="fl">Register Reading</label><input type="number" class="fi" id="mtrReg" placeholder="Enter value from photo" inputmode="decimal" step="any"></div>
-  </div>
-  <!-- CHECKBOXES -->
-  <div class="card">
-    <div class="card-t">Field Conditions</div>
-    <div class="cb-group">
-      <div class="cb-item"><input type="checkbox" id="cb_mObstructed"><label for="cb_mObstructed">Meter Obstructed</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_mVegDestruct"><label for="cb_mVegDestruct">Vegetation Destruct</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_mVegHerb"><label for="cb_mVegHerb">Vegetation Herbicide Application</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_mExtended"><label for="cb_mExtended">Extended Effort</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_mDecon"><label for="cb_mDecon">Decontamination Required</label></div>
-    </div>
-  </div>
-  <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="mtrNotes" placeholder="Observations, issues, maintenance needed..."></textarea></div>
-  <button class="btn btn-p" onclick="saveMtr()">Save Meter Reading</button>
-</div>
-
-<!-- WELL CHECK -->
-<div class="vw" id="v-well">
-  <div class="dhdr"><button class="back" onclick="nav('session')">‹</button><div class="dtitle" id="wellT">Well</div></div>
-  <div class="map-wrap" id="wellMap"></div>
-  <div class="card">
-    <div class="card-t">📸 Photos</div>
-    <div class="cam-btn-big" onclick="capturePhoto('well')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      Take Photo
-    </div>
-    <div class="pgrid" id="wellPhotos"></div>
-    <div id="wellPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
-  </div>
-  <div class="fg"><label class="fl">Pre-Check Pump Status</label>
-    <div class="rgroup" id="pStat">
-      <div class="ropt" onclick="selR(this,'pStat')" data-value="on">ON</div>
-      <div class="ropt" onclick="selR(this,'pStat')" data-value="off">OFF</div>
-      <div class="ropt" onclick="selR(this,'pStat')" data-value="oos">OUT OF SERVICE</div>
-    </div>
-  </div>
-  <div class="fg"><label class="fl">Water Depth (ft)</label><input type="number" class="fi" id="wDepth" placeholder="e.g. 42.5" inputmode="decimal" step="any"></div>
-  <div class="section-box">
-    <div class="card-t">💧 Water Sample</div>
-    <div class="fg"><label class="fl">Temperature (°F)</label><input type="number" class="fi" id="wTemp" placeholder="e.g. 72.3" inputmode="decimal" step="any"></div>
-    <div class="fg"><label class="fl">Conductivity</label>
-      <div class="unit-input-wrap">
-        <input type="number" class="fi" id="wCond" placeholder="Value" inputmode="decimal" step="any" oninput="convCond()">
-        <select class="fi" id="wCondU" onchange="convCond()"><option value="S">S</option><option value="mS">mS</option><option value="uS">µS</option></select>
-      </div>
-      <div class="conv-row" id="condRow" style="display:none"><span class="conv-label">Converted:</span><span class="conv-val" id="condVal">— mS</span></div>
-    </div>
-    <div class="fg"><label class="fl">Sample Time</label><input type="time" class="fi" id="wTime"></div>
-  </div>
-  <!-- CHECKBOXES -->
-  <div class="card">
-    <div class="card-t">Field Conditions</div>
-    <div class="cb-group">
-      <div class="cb-item"><input type="checkbox" id="cb_wObstructed"><label for="cb_wObstructed">Meter Obstructed</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_wVegDestruct"><label for="cb_wVegDestruct">Vegetation Destruct</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_wVegHerb"><label for="cb_wVegHerb">Vegetation Herbicide Application</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_wExtended"><label for="cb_wExtended">Extended Effort</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_wDecon"><label for="cb_wDecon">Decontamination Required</label></div>
-    </div>
-  </div>
-  <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="wellNotes" placeholder="Observations, issues..."></textarea></div>
-  <button class="btn btn-p" onclick="saveWell()">Save Well Reading</button>
-</div>
-
-<!-- GROUP DETAIL -->
-<div class="vw" id="v-group">
-  <div class="dhdr"><button class="back" onclick="nav('session')">‹</button><div class="dtitle" id="grpTitle">Group</div></div>
-  <div class="card">
-    <div class="card-t">Members</div>
-    <div id="grpMemberList" class="grp-members"></div>
-  </div>
-  <div class="card">
-    <div class="card-t">📸 Group Photos</div>
-    <p style="font-size:13px;color:var(--dim);margin-bottom:10px">These photos will be included with every member feature on export.</p>
-    <div class="cam-btn-big" onclick="capturePhoto('group')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      Take Photo
-    </div>
-    <div class="pgrid" id="grpPhotos"></div>
-    <div id="grpPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
-  </div>
-  <div class="fg"><label class="fl">Group Notes</label><textarea class="fi" id="grpNotes" placeholder="Notes about this group..."></textarea></div>
-  <button class="btn btn-p" onclick="saveGroup()">Save Group</button>
-  <button class="btn btn-d" onclick="deleteGroup()" style="margin-top:8px;font-size:13px">Delete Group</button>
-</div>
-
-<!-- EXPORT -->
-<div class="vw" id="v-export">
-  <h2 style="font-size:20px;font-weight:800;margin-bottom:14px">Export Data</h2>
-  <div class="fg"><label class="fl">Session</label><select class="fi" id="expSel" onchange="updExp()"><option value="">-- Choose --</option></select></div>
-  <div id="expOpts" style="display:none">
-    <div class="card" style="text-align:center"><h3 style="font-size:15px;margin-bottom:6px">📊 CSV — Meter Readings</h3><p style="font-size:12px;color:var(--dim);margin-bottom:10px">Register values for reconciliation</p><button class="btn btn-p btn-sm" onclick="expMCSV()">Download</button></div>
-    <div class="card" style="text-align:center"><h3 style="font-size:15px;margin-bottom:6px">💧 CSV — Well Readings</h3><p style="font-size:12px;color:var(--dim);margin-bottom:10px">All well data, conductivity in mS</p><button class="btn btn-p btn-sm" onclick="expWCSV()">Download</button></div>
-    <div class="card" style="text-align:center"><h3 style="font-size:15px;margin-bottom:6px">📋 CSV — Full Summary</h3><p style="font-size:12px;color:var(--dim);margin-bottom:10px">Combined report</p><button class="btn btn-p btn-sm" onclick="expSum()">Download</button></div>
-    <div class="card" style="text-align:center"><h3 style="font-size:15px;margin-bottom:6px">📄 PDF — Data Only</h3><p style="font-size:12px;color:var(--dim);margin-bottom:10px">Professional report without photos</p><button class="btn btn-p btn-sm" onclick="expPDF('data')">Download PDF</button></div>
-    <div class="card" style="text-align:center"><h3 style="font-size:15px;margin-bottom:6px">📄 PDF — Full Report with Photos</h3><p style="font-size:12px;color:var(--dim);margin-bottom:10px">Complete report with all photos organized by feature</p><button class="btn btn-p btn-sm" onclick="expPDF('full')">Download PDF</button></div>
-    <div class="card" style="text-align:center"><h3 style="font-size:15px;margin-bottom:6px">📦 Complete Package (PDF + Photos ZIP)</h3><p style="font-size:12px;color:var(--dim);margin-bottom:10px">Summary report + organized photo folders in one download</p><button class="btn btn-s btn-sm" onclick="expPackage()">Download Package</button></div>
-    <div class="card" style="text-align:center"><h3 style="font-size:15px;margin-bottom:6px">📸 Photos ZIP Only</h3><p style="font-size:12px;color:var(--dim);margin-bottom:10px">Organized by feature ID</p><button class="btn btn-s btn-sm" onclick="expZip()">Download ZIP</button></div>
-  </div>
-</div>
-
-<!-- SETTINGS -->
-<div class="vw" id="v-settings">
-  <h2 style="font-size:20px;font-weight:800;margin-bottom:14px">App Settings</h2>
-  <!-- ROLES -->
-  <div class="card">
-    <div class="card-t">Roles</div>
-    <div id="roleList"></div>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <input type="text" class="fi fi-sm" id="newRole" placeholder="e.g. Inspector" style="flex:1">
-      <button class="btn btn-p btn-sm" onclick="addRole()">Add</button>
-    </div>
-  </div>
-  <!-- PERSONNEL -->
-  <div class="card">
-    <div class="card-t">Personnel (<span id="pCount">0</span>/25)</div>
-    <div id="personList"></div>
-    <button class="btn btn-s" onclick="showM('personModal')" style="margin-top:8px" id="addPersonBtn">+ Add Person</button>
-  </div>
-  <!-- EXPORT/IMPORT PROFILES -->
-  <div class="card" style="margin-top:8px">
-    <div class="card-t">Client Profiles</div>
-    <p style="font-size:13px;color:var(--dim);margin-bottom:10px">Export your client setup to transfer to another device, or import a profile file.</p>
-    <button class="btn btn-p" onclick="exportProfiles()" style="font-size:13px">📤 Export All Profiles</button>
-    <button class="btn btn-s" onclick="document.getElementById('importFile').click()" style="font-size:13px">📥 Import Profiles</button>
-    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importProfiles(event)">
-    <div id="importStatus" style="margin-top:8px;font-size:12px;color:var(--dim)"></div>
-  </div>
-  <div class="card" style="margin-top:8px">
-    <div class="card-t">Data Management</div>
-    <button class="btn btn-d" onclick="clearAll()" style="font-size:13px">Clear All Data</button>
-  </div>
-</div>
-
-<!-- ====== MODALS ====== -->
-<!-- SESSION MODAL -->
-<div class="modal-bg" id="sesModal">
-  <div class="modal">
-    <h2>Start New Session</h2>
-    <div class="fg"><label class="fl">Client</label><select class="fi" id="sesC" onchange="sesCChg()"><option value="">-- Select --</option></select></div>
-    <div class="fg"><label class="fl">Location</label><select class="fi" id="sesL"><option value="">-- Select --</option></select></div>
-    <div class="fg"><label class="fl">Service Type</label>
-      <select class="fi" id="sesSvcType">
-        <option value="">-- Select --</option>
-        <option value="hydrogeologic">Hydrogeologic</option>
-        <option value="inspection">Inspection</option>
-        <option value="consulting">Consulting</option>
-        <option value="repair">Repair</option>
-        <option value="geospatial">Geospatial</option>
-        <option value="geotechnical">Geotechnical</option>
-        <option value="other">Other</option>
-      </select>
-    </div>
-    <div class="fg"><label class="fl">Date</label><input type="date" class="fi" id="sesD"></div>
-    <div class="fg"><label class="fl">Temperature (°F)</label><input type="number" class="fi fi-sm" id="sesTempF" placeholder="e.g. 82" inputmode="decimal" step="any"></div>
-    <div class="fg"><label class="fl">Weather Condition</label>
-      <div class="wg" id="wxCond">
-        <div class="ropt" onclick="selWx(this)" data-value="sunny">☀️ Sunny</div>
-        <div class="ropt" onclick="selWx(this)" data-value="partly_cloudy">⛅ Partly Cloudy</div>
-        <div class="ropt" onclick="selWx(this)" data-value="overcast">☁️ Overcast</div>
-        <div class="ropt" onclick="selWx(this)" data-value="light_rain_cont">🌧 Light Rain (Continuous)</div>
-        <div class="ropt" onclick="selWx(this)" data-value="light_rain_int">🌦 Light Rain (Intermittent)</div>
-        <div class="ropt" onclick="selWx(this)" data-value="mod_rain_cont">🌧 Mod Rain (Continuous)</div>
-        <div class="ropt" onclick="selWx(this)" data-value="mod_rain_int">🌦 Mod Rain (Intermittent)</div>
-        <div class="ropt" onclick="selWx(this)" data-value="heavy_rain_cont">⛈ Heavy Rain (Continuous)</div>
-        <div class="ropt" onclick="selWx(this)" data-value="heavy_rain_int">⛈ Heavy Rain (Intermittent)</div>
-        <div class="ropt" onclick="selWx(this)" data-value="windy">💨 Windy</div>
-      </div>
-    </div>
-    <div class="fg"><label class="fl">Assigned Personnel</label>
-      <div id="sesPersonnelList"></div>
-      <div style="display:flex;gap:6px;margin-top:6px">
-        <select class="fi fi-sm" id="sesPersonSel" style="flex:1"><option value="">-- Person --</option></select>
-        <select class="fi fi-sm" id="sesRoleSel" style="flex:0 0 120px"><option value="">-- Role --</option></select>
-        <button class="btn btn-p btn-sm" onclick="addSesPersonnel()">+</button>
-      </div>
-    </div>
-    <!-- REPORTING PERIOD -->
-    <div class="fg"><label class="fl">Reporting Period (optional)</label>
-      <select class="fi fi-sm" id="rpFreq" onchange="rpChange()">
-        <option value="">None</option>
-        <option value="daily">Daily</option>
-        <option value="weekly">Weekly</option>
-        <option value="bimonthly">Bimonthly</option>
-        <option value="monthly">Monthly</option>
-        <option value="quarterly">Quarterly</option>
-        <option value="biannual">Biannual</option>
-        <option value="annual">Annual</option>
-        <option value="other">Other</option>
-      </select>
-      <div id="rpDetail" style="display:none;margin-top:8px"></div>
-    </div>
-    <div class="fg"><label class="fl">Session Comments</label><textarea class="fi" id="sesComments" placeholder="Optional start notes..." style="min-height:50px"></textarea></div>
-    <button class="btn btn-p" onclick="createSes()">Start Session</button>
-    <div class="card-t" style="margin-top:16px">Previous Sessions</div>
-    <div id="sesList" style="max-height:200px;overflow-y:auto"></div>
-    <button class="btn btn-s" onclick="closeM('sesModal')" style="margin-top:10px">Close</button>
-  </div>
-</div>
-
-<!-- COMPLETE SESSION MODAL -->
-<div class="modal-bg" id="completeModal">
-  <div class="modal">
-    <h2>Complete Session</h2>
-    <p style="font-size:13px;color:var(--dim);margin-bottom:14px">Add any final notes before closing this session.</p>
-    <div class="fg"><label class="fl">Closing Notes / Comments</label><textarea class="fi" id="endNotes" placeholder="Final observations, follow-up items..." style="min-height:100px"></textarea></div>
-    <button class="btn btn-p" onclick="confirmComplete()">✓ Confirm Complete</button>
-    <button class="btn btn-s" onclick="closeM('completeModal')">Cancel</button>
-  </div>
-</div>
-
-<!-- CLIENT MODAL -->
-<div class="modal-bg" id="cliModal"><div class="modal">
-  <h2 id="cliMT">Add Client</h2>
-  <div class="fg"><label class="fl">Client Name</label><input type="text" class="fi" id="cliN" placeholder="e.g. Dole Food Company"></div>
-  <div class="fg"><label class="fl">Contact</label><input type="text" class="fi" id="cliC" placeholder="Optional"></div>
-  <div class="fg"><label class="fl">Phone</label><input type="tel" class="fi" id="cliP" placeholder="Optional"></div>
-  <div class="fg"><label class="fl">Email</label><input type="email" class="fi" id="cliE" placeholder="Optional"></div>
-  <button class="btn btn-p" onclick="saveCli()">Save Client</button>
-  <button class="btn btn-s" onclick="closeM('cliModal')">Cancel</button>
-</div></div>
-
-<!-- LOCATION MODAL -->
-<div class="modal-bg" id="locModal"><div class="modal">
-  <h2 id="locMT">Add Location</h2>
-  <div class="fg"><label class="fl">Location Name</label><input type="text" class="fi" id="locNI" placeholder="e.g. Kunia Fields North"></div>
-  <div class="fg"><label class="fl">Address / Description</label><input type="text" class="fi" id="locAI" placeholder="Optional"></div>
-  <button class="btn btn-p" onclick="saveLoc()">Save Location</button>
-  <button class="btn btn-s" onclick="closeM('locModal')">Cancel</button>
-</div></div>
-
-<!-- REGISTER SELECT MODAL -->
-<div class="modal-bg" id="regModal"><div class="modal">
-  <h2>Select Register Photo</h2>
-  <p style="font-size:13px;color:var(--dim);margin-bottom:12px">Tap the photo showing the register closeup.</p>
-  <div class="pgrid" id="regGrid"></div>
-  <button class="btn btn-s" onclick="closeM('regModal')" style="margin-top:12px">Cancel</button>
-</div></div>
-
-<!-- PERSON MODAL -->
-<div class="modal-bg" id="personModal"><div class="modal">
-  <h2>Add Person</h2>
-  <div class="fg"><label class="fl">First Name</label><input type="text" class="fi" id="pFirst" placeholder="First name"></div>
-  <div class="fg"><label class="fl">Last Name</label><input type="text" class="fi" id="pLast" placeholder="Last name"></div>
-  <div class="fg"><label class="fl">Email</label><input type="email" class="fi" id="pEmail" placeholder="Optional"></div>
-  <div class="fg"><label class="fl">Phone</label><input type="tel" class="fi" id="pPhone" placeholder="Optional"></div>
-  <button class="btn btn-p" onclick="savePerson()">Save Person</button>
-  <button class="btn btn-s" onclick="closeM('personModal')">Cancel</button>
-</div></div>
-
-<!-- CREATE GROUP MODAL -->
-<div class="modal-bg" id="grpModal"><div class="modal">
-  <h2>Create Group</h2>
-  <div class="fg"><label class="fl">Group Name</label><input type="text" class="fi" id="grpNameIn" placeholder="e.g. North Cluster, Pump Station Area"></div>
-  <div class="fg">
-    <label class="fl">Select Features</label>
-    <div id="grpFeatSelect"></div>
-  </div>
-  <button class="btn btn-p" onclick="confirmCreateGroup()">Create Group</button>
-  <button class="btn btn-s" onclick="closeM('grpModal')">Cancel</button>
-</div></div>
-
-<!-- TAB BAR -->
-<div class="tbar">
-  <button class="active" onclick="nav('clients')" data-tab="clients">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-    Clients
-  </button>
-  <button onclick="nav('session')" data-tab="session">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
-    Session
-  </button>
-  <button onclick="nav('export')" data-tab="export">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Export
-  </button>
-  <button onclick="nav('settings')" data-tab="settings">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-    Settings
-  </button>
-</div>
-
-<input type="file" id="camIn" accept="image/*" capture="environment" style="display:none">
-<script>
-// === DB ===
-let db;const DB='ACSField4',VER=2;
-function odb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,VER);r.onupgradeneeded=e=>{const d=e.target.result;['clients','locations','features','sessions','readings','settings','groups'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id'})})};r.onsuccess=e=>{db=e.target.result;res(db)};r.onerror=e=>rej(e.target.error)})}
-function P(s,d){return new Promise((r,j)=>{const t=db.transaction(s,'readwrite');t.objectStore(s).put(d);t.oncomplete=()=>r();t.onerror=e=>j(e.target.error)})}
-function G(s,k){return new Promise((r,j)=>{const t=db.transaction(s,'readonly');const q=t.objectStore(s).get(k);q.onsuccess=()=>r(q.result);q.onerror=e=>j(e.target.error)})}
-function A(s){return new Promise((r,j)=>{const t=db.transaction(s,'readonly');const q=t.objectStore(s).getAll();q.onsuccess=()=>r(q.result);q.onerror=e=>j(e.target.error)})}
-function D(s,k){return new Promise((r,j)=>{const t=db.transaction(s,'readwrite');t.objectStore(s).delete(k);t.oncomplete=()=>r();t.onerror=e=>j(e.target.error)})}
-function CLR(s){return new Promise((r,j)=>{const t=db.transaction(s,'readwrite');t.objectStore(s).clear();t.oncomplete=()=>r();t.onerror=e=>j(e.target.error)})}
-
-// === STATE ===
-let cCli=null,cLoc=null,cSes=null,cFeat=null,eFeat=null,eCli=null,eLoc=null;
-let mPh=[],wPh=[],genPh=[],grpPh=[],regP=null,capTgt=null;
-let sMap=null,sMkr=null,vMap=null;
-let sesPersonnel=[];
-let curGroupId=null;
-const uid=()=>'_'+Date.now()+'_'+Math.random().toString(36).substr(2,6);
-
-async function getSettings(){let s=await G('settings','config');if(!s){s={id:'config',roles:['Inspector','QC/Reviewer'],personnel:[]};await P('settings',s)}return s}
-
-// === INIT ===
-async function init(){
-  await odb();
-  document.getElementById('sesD').value=new Date().toISOString().split('T')[0];
-  const last=localStorage.getItem('lastSes4');
-  if(last){try{const s=await G('sessions',last);if(s){cSes=s;cCli=s.clientId;cLoc=s.locationId;updSesUI()}}catch(e){}}
-  renderClis();renderSettings();
-  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-}
-
-// === NAV ===
-function nav(v){
-  document.querySelectorAll('.vw').forEach(x=>x.classList.remove('active'));
-  document.getElementById('v-'+v).classList.add('active');
-  if(!['client','location','feature-setup','meter','well','group'].includes(v)){
-    document.querySelectorAll('.tbar button').forEach(b=>b.classList.remove('active'));
-    const t=document.querySelector('[data-tab="'+v+'"]');if(t)t.classList.add('active');
-  }
-  if(v==='clients')renderClis();if(v==='client')renderCli();if(v==='location')renderLoc();
-  if(v==='session')renderSes();if(v==='export')refExp();if(v==='settings')renderSettings();
-  window.scrollTo(0,0);
-}
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
-function showM(id){document.getElementById(id).classList.add('show');if(id==='sesModal'){popSesSel();renderSesList()}}
-function closeM(id){document.getElementById(id).classList.remove('show')}
-function selR(el,gid){document.querySelectorAll('#'+gid+' .ropt').forEach(r=>r.classList.remove('sel'));el.classList.add('sel')}
-function fD(d){if(!d)return'';return new Date(d+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}
-function fT(ts){if(!ts)return'';return new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
-
-// === SETTINGS ===
-async function renderSettings(){
-  const s=await getSettings();
-  // Roles
-  document.getElementById('roleList').innerHTML=s.roles.map((r,i)=>'<span class="role-tag">'+r+'<span class="rt-x" onclick="removeRole('+i+')"> ✕</span></span>').join('');
-  // Personnel
-  const pl=document.getElementById('personList');
-  document.getElementById('pCount').textContent=s.personnel.length;
-  if(s.personnel.length>=25)document.getElementById('addPersonBtn').style.display='none';
-  else document.getElementById('addPersonBtn').style.display='block';
-  pl.innerHTML=s.personnel.map(p=>'<div class="person-item"><div><div class="pi-name">'+p.firstName+' '+p.lastName+'</div><div class="pi-detail">'+(p.email||'')+(p.phone?' • '+p.phone:'')+'</div></div><button onclick="removePerson(\''+p.id+'\')">✕</button></div>').join('')||'<div class="empty"><p>No personnel added.</p></div>';
-}
-async function addRole(){const inp=document.getElementById('newRole');const v=inp.value.trim();if(!v)return;const s=await getSettings();if(s.roles.length>=10){toast('Max 10 roles');return}if(s.roles.includes(v)){toast('Role exists');return}s.roles.push(v);await P('settings',s);inp.value='';renderSettings();toast('Role added')}
-async function removeRole(i){const s=await getSettings();s.roles.splice(i,1);await P('settings',s);renderSettings()}
-async function savePerson(){const f=document.getElementById('pFirst').value.trim(),l=document.getElementById('pLast').value.trim();if(!f||!l){toast('Enter first and last name');return}const s=await getSettings();if(s.personnel.length>=25){toast('Max 25 personnel');return}s.personnel.push({id:uid(),firstName:f,lastName:l,email:document.getElementById('pEmail').value.trim(),phone:document.getElementById('pPhone').value.trim()});await P('settings',s);closeM('personModal');document.getElementById('pFirst').value='';document.getElementById('pLast').value='';document.getElementById('pEmail').value='';document.getElementById('pPhone').value='';renderSettings();toast('Person added')}
-async function removePerson(id){const s=await getSettings();s.personnel=s.personnel.filter(p=>p.id!==id);await P('settings',s);renderSettings()}
-
-// === CLIENTS ===
-async function renderClis(){const cls=await A('clients');const el=document.getElementById('clientList');const emp=document.getElementById('clientEmpty');if(!cls.length){el.innerHTML='';emp.style.display='block';return}emp.style.display='none';const locs=await A('locations');el.innerHTML=cls.sort((a,b)=>a.name.localeCompare(b.name)).map(c=>{const n=locs.filter(l=>l.clientId===c.id).length;return '<div class="li" onclick="openCli(\''+c.id+'\')"><div><div class="li-id">'+c.name+'</div><div class="li-sub">'+n+' location'+(n!==1?'s':'')+'</div></div><span class="chevron">›</span></div>'}).join('')}
-function openAddClient(){eCli=null;document.getElementById('cliMT').textContent='Add Client';['cliN','cliC','cliP','cliE'].forEach(x=>document.getElementById(x).value='');showM('cliModal')}
-async function editClient(){const c=await G('clients',cCli);eCli=cCli;document.getElementById('cliMT').textContent='Edit Client';document.getElementById('cliN').value=c.name;document.getElementById('cliC').value=c.contact||'';document.getElementById('cliP').value=c.phone||'';document.getElementById('cliE').value=c.email||'';showM('cliModal')}
-async function saveCli(){const n=document.getElementById('cliN').value.trim();if(!n){toast('Enter name');return}await P('clients',{id:eCli||uid(),name:n,contact:document.getElementById('cliC').value.trim(),phone:document.getElementById('cliP').value.trim(),email:document.getElementById('cliE').value.trim()});closeM('cliModal');renderClis();if(eCli)renderCli();toast('Saved')}
-async function deleteClient(){if(!confirm('Delete client and ALL data?'))return;const locs=(await A('locations')).filter(l=>l.clientId===cCli);for(const l of locs){const fs=(await A('features')).filter(f=>f.locationId===l.id);for(const f of fs)await D('features',f.id);const ss=(await A('sessions')).filter(s=>s.locationId===l.id);for(const s of ss){const rs=(await A('readings')).filter(r=>r.sessionId===s.id);for(const r of rs)await D('readings',r.id);const gs=(await A('groups')).filter(g=>g.sessionId===s.id);for(const g of gs)await D('groups',g.id);await D('sessions',s.id)}await D('locations',l.id)}await D('clients',cCli);if(cSes&&cSes.clientId===cCli){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}nav('clients');toast('Deleted')}
-function openCli(id){cCli=id;nav('client')}
-async function renderCli(){const c=await G('clients',cCli);if(!c)return;document.getElementById('clientName').textContent=c.name;let h='<div style="font-size:13px;color:var(--dim)">';if(c.contact)h+='Contact: <strong>'+c.contact+'</strong><br>';if(c.phone)h+='Phone: '+c.phone+'<br>';if(c.email)h+='Email: '+c.email+'<br>';if(!c.contact&&!c.phone&&!c.email)h+='No contact info';h+='</div>';document.getElementById('clientInfo').innerHTML=h;const locs=(await A('locations')).filter(l=>l.clientId===cCli);const el=document.getElementById('locList');const emp=document.getElementById('locEmpty');if(!locs.length){el.innerHTML='';emp.style.display='block';return}emp.style.display='none';const fs=await A('features');el.innerHTML=locs.map(l=>{const n=fs.filter(f=>f.locationId===l.id).length;return '<div class="li" onclick="openLoc(\''+l.id+'\')"><div><div class="li-id">'+l.name+'</div><div class="li-sub">'+(l.address||'')+' • '+n+' features</div></div><span class="chevron">›</span></div>'}).join('')}
-
-// === LOCATIONS ===
-function openAddLocation(){eLoc=null;document.getElementById('locMT').textContent='Add Location';document.getElementById('locNI').value='';document.getElementById('locAI').value='';showM('locModal')}
-async function editLocation(){const l=await G('locations',cLoc);eLoc=cLoc;document.getElementById('locMT').textContent='Edit Location';document.getElementById('locNI').value=l.name;document.getElementById('locAI').value=l.address||'';showM('locModal')}
-async function saveLoc(){const n=document.getElementById('locNI').value.trim();if(!n){toast('Enter name');return}await P('locations',{id:eLoc||uid(),clientId:cCli,name:n,address:document.getElementById('locAI').value.trim()});closeM('locModal');renderCli();toast('Saved')}
-function openLoc(id){cLoc=id;nav('location')}
-async function renderLoc(){const l=await G('locations',cLoc);if(!l)return;document.getElementById('locName').textContent=l.name;document.getElementById('locInfo').innerHTML='<div style="font-size:13px;color:var(--dim)">'+(l.address||'No address')+'</div>';const fs=(await A('features')).filter(f=>f.locationId===cLoc);const el=document.getElementById('featureList');const emp=document.getElementById('featureEmpty');if(!fs.length){el.innerHTML='';emp.style.display='block';return}emp.style.display='none';const ms=fs.filter(f=>f.type==='meter').sort((a,b)=>a.featureId.localeCompare(b.featureId)),ws=fs.filter(f=>f.type==='well').sort((a,b)=>a.featureId.localeCompare(b.featureId));let h='';if(ms.length){h+='<div class="card-t">Meters ('+ms.length+')</div>';h+=ms.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}if(ws.length){h+='<div class="card-t" style="margin-top:10px">Wells ('+ws.length+')</div>';h+=ws.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}el.innerHTML=h}
-async function deleteLocation(){if(!confirm('Delete location and all data?'))return;const fs=(await A('features')).filter(f=>f.locationId===cLoc);for(const f of fs)await D('features',f.id);const ss=(await A('sessions')).filter(s=>s.locationId===cLoc);for(const s of ss){const rs=(await A('readings')).filter(r=>r.sessionId===s.id);for(const r of rs)await D('readings',r.id);const gs=(await A('groups')).filter(g=>g.sessionId===s.id);for(const g of gs)await D('groups',g.id);await D('sessions',s.id)}await D('locations',cLoc);if(cSes&&cSes.locationId===cLoc){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}nav('client');toast('Deleted')}
-
-// === FEATURES ===
-function openAddFeature(){eFeat=null;document.getElementById('fsTitle').textContent='Add Feature';document.getElementById('fIdIn').value='';document.getElementById('fLat').value='';document.getElementById('fLng').value='';document.getElementById('fDelBtn').style.display='none';document.querySelectorAll('#fType .ropt').forEach(r=>r.classList.remove('sel'));document.querySelector('#fType [data-value="meter"]').classList.add('sel');document.getElementById('fsBack').onclick=()=>nav('location');nav('feature-setup');setTimeout(()=>initSMap(),100)}
-async function openFS(id){const f=await G('features',id);eFeat=id;document.getElementById('fsTitle').textContent='Edit Feature';document.getElementById('fIdIn').value=f.featureId;document.getElementById('fLat').value=f.lat||'';document.getElementById('fLng').value=f.lng||'';document.getElementById('fDelBtn').style.display='block';document.querySelectorAll('#fType .ropt').forEach(r=>r.classList.remove('sel'));document.querySelector('#fType [data-value="'+f.type+'"]').classList.add('sel');document.getElementById('fsBack').onclick=()=>nav('location');nav('feature-setup');setTimeout(()=>initSMap(f.lat,f.lng),100)}
-function initSMap(lat,lng){const w=document.getElementById('setupMapWrap');if(sMap){sMap.remove();sMap=null}const c=lat&&lng?[lat,lng]:[21.45,-158.0];const z=lat&&lng?16:10;sMap=L.map(w).setView(c,z);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(sMap);sMkr=lat&&lng?L.marker([lat,lng]).addTo(sMap):null;sMap.on('click',e=>{document.getElementById('fLat').value=e.latlng.lat.toFixed(6);document.getElementById('fLng').value=e.latlng.lng.toFixed(6);if(sMkr)sMap.removeLayer(sMkr);sMkr=L.marker([e.latlng.lat,e.latlng.lng]).addTo(sMap)});setTimeout(()=>sMap.invalidateSize(),200)}
-function useGPS(){if(!navigator.geolocation){toast('GPS unavailable');return}navigator.geolocation.getCurrentPosition(p=>{const la=p.coords.latitude,ln=p.coords.longitude;document.getElementById('fLat').value=la.toFixed(6);document.getElementById('fLng').value=ln.toFixed(6);if(sMap){sMap.setView([la,ln],16);if(sMkr)sMap.removeLayer(sMkr);sMkr=L.marker([la,ln]).addTo(sMap)}toast('GPS set')},()=>toast('GPS failed'),{enableHighAccuracy:true})}
-function clearPin(){document.getElementById('fLat').value='';document.getElementById('fLng').value='';if(sMkr&&sMap){sMap.removeLayer(sMkr);sMkr=null}}
-async function saveFeature(){const fid=document.getElementById('fIdIn').value.trim();if(!fid){toast('Enter ID');return}const tp=document.querySelector('#fType .ropt.sel');await P('features',{id:eFeat||uid(),locationId:cLoc,type:tp.dataset.value,featureId:fid,lat:parseFloat(document.getElementById('fLat').value)||null,lng:parseFloat(document.getElementById('fLng').value)||null});toast('Saved');nav('location')}
-async function deleteFeature(){if(!confirm('Delete?'))return;await D('features',eFeat);toast('Deleted');nav('location')}
-
-// === WEATHER ===
-function selWx(el){document.querySelectorAll('#wxCond .ropt').forEach(r=>r.classList.remove('sel'));el.classList.add('sel')}
-const WX_LABELS={'sunny':'Sunny','partly_cloudy':'Partly Cloudy','overcast':'Overcast','light_rain_cont':'Light Rain (Continuous)','light_rain_int':'Light Rain (Intermittent)','mod_rain_cont':'Moderate Rain (Continuous)','mod_rain_int':'Moderate Rain (Intermittent)','heavy_rain_cont':'Heavy Rain (Continuous)','heavy_rain_int':'Heavy Rain (Intermittent)','windy':'Windy'};
-
-// === REPORTING PERIOD ===
-function rpChange(){const f=document.getElementById('rpFreq').value;const d=document.getElementById('rpDetail');if(!f||f==='daily'){d.style.display='none';d.innerHTML='';return}d.style.display='block';const yr='<div class="fg" style="margin-bottom:8px"><label class="fl">Year</label><input type="number" class="fi fi-sm" id="rpYear" value="'+new Date().getFullYear()+'" min="2020" max="2040"></div>';
-if(f==='weekly')d.innerHTML=yr+'<div class="fg"><label class="fl">Week #</label><input type="number" class="fi fi-sm" id="rpWeek" min="1" max="53" placeholder="1-53"></div>';
-else if(f==='bimonthly')d.innerHTML=yr+'<div class="fg"><label class="fl">Period</label><select class="fi fi-sm" id="rpBimonth"><option value="1">Jan-Feb</option><option value="2">Mar-Apr</option><option value="3">May-Jun</option><option value="4">Jul-Aug</option><option value="5">Sep-Oct</option><option value="6">Nov-Dec</option></select></div>';
-else if(f==='monthly')d.innerHTML=yr+'<div class="fg"><label class="fl">Month</label><select class="fi fi-sm" id="rpMonth"><option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select></div>';
-else if(f==='quarterly')d.innerHTML=yr+'<div class="fg"><label class="fl">Quarter</label><select class="fi fi-sm" id="rpQtr"><option value="Q1">Q1 (Jan-Mar)</option><option value="Q2">Q2 (Apr-Jun)</option><option value="Q3">Q3 (Jul-Sep)</option><option value="Q4">Q4 (Oct-Dec)</option></select></div>';
-else if(f==='biannual')d.innerHTML=yr+'<div class="fg"><label class="fl">Half</label><select class="fi fi-sm" id="rpHalf"><option value="H1">H1 (Jan-Jun)</option><option value="H2">H2 (Jul-Dec)</option></select></div>';
-else if(f==='annual')d.innerHTML=yr;
-else if(f==='other')d.innerHTML='<div class="fg"><label class="fl">Describe Period</label><input type="text" class="fi fi-sm" id="rpOther" placeholder="e.g. FY2025"></div>';
-}
-function getRPData(){const f=document.getElementById('rpFreq').value;if(!f)return null;const rp={frequency:f};if(f==='daily')return rp;const ye=document.getElementById('rpYear');if(ye)rp.year=ye.value;if(f==='weekly'){const w=document.getElementById('rpWeek');rp.week=w?w.value:''}
-else if(f==='bimonthly'){const b=document.getElementById('rpBimonth');rp.period=b?b.value:''}
-else if(f==='monthly'){const m=document.getElementById('rpMonth');rp.month=m?m.value:''}
-else if(f==='quarterly'){const q=document.getElementById('rpQtr');rp.quarter=q?q.value:''}
-else if(f==='biannual'){const h=document.getElementById('rpHalf');rp.half=h?h.value:''}
-else if(f==='other'){const o=document.getElementById('rpOther');rp.description=o?o.value:''}
-return rp;}
-function fmtRP(rp){if(!rp)return'None';const f=rp.frequency;if(f==='daily')return'Daily';if(f==='weekly')return'Weekly — Week '+rp.week+', '+rp.year;if(f==='bimonthly'){const ps=['','Jan-Feb','Mar-Apr','May-Jun','Jul-Aug','Sep-Oct','Nov-Dec'];return'Bimonthly — '+(ps[rp.period]||'')+' '+rp.year}if(f==='monthly'){const ms=['','January','February','March','April','May','June','July','August','September','October','November','December'];return'Monthly — '+(ms[rp.month]||'')+' '+rp.year}if(f==='quarterly')return'Quarterly — '+rp.quarter+' '+rp.year;if(f==='biannual')return'Biannual — '+rp.half+' '+rp.year;if(f==='annual')return'Annual — '+rp.year;if(f==='other')return rp.description||'Other';return f}
-
-// === SESSION PERSONNEL ===
-async function popSesSel(){
-  const cls=await A('clients');document.getElementById('sesC').innerHTML='<option value="">-- Select --</option>'+cls.map(c=>'<option value="'+c.id+'">'+c.name+'</option>').join('');document.getElementById('sesL').innerHTML='<option value="">-- Select --</option>';
-  const s=await getSettings();
-  document.getElementById('sesPersonSel').innerHTML='<option value="">-- Person --</option>'+s.personnel.map(p=>'<option value="'+p.id+'">'+p.firstName+' '+p.lastName+'</option>').join('');
-  document.getElementById('sesRoleSel').innerHTML='<option value="">-- Role --</option>'+s.roles.map(r=>'<option value="'+r+'">'+r+'</option>').join('');
-  sesPersonnel=[];renderSesPersonnel();
-}
-async function sesCChg(){const id=document.getElementById('sesC').value;if(!id){document.getElementById('sesL').innerHTML='<option value="">--</option>';return}const ls=(await A('locations')).filter(l=>l.clientId===id);document.getElementById('sesL').innerHTML='<option value="">-- Select --</option>'+ls.map(l=>'<option value="'+l.id+'">'+l.name+'</option>').join('')}
-function addSesPersonnel(){const pid=document.getElementById('sesPersonSel').value,role=document.getElementById('sesRoleSel').value;if(!pid||!role){toast('Select person and role');return}if(sesPersonnel.find(x=>x.personId===pid&&x.role===role)){toast('Already added');return}sesPersonnel.push({personId:pid,role});renderSesPersonnel()}
-async function renderSesPersonnel(){const s=await getSettings();const el=document.getElementById('sesPersonnelList');el.innerHTML=sesPersonnel.map((sp,i)=>{const p=s.personnel.find(x=>x.id===sp.personId);return '<div class="chip">'+(p?p.firstName+' '+p.lastName:'?')+' <span style="opacity:.6">— '+sp.role+'</span><button onclick="sesPersonnel.splice('+i+',1);renderSesPersonnel()">✕</button></div>'}).join('')}
-
-// === SESSIONS ===
-async function createSes(){
-  const ci=document.getElementById('sesC').value,li=document.getElementById('sesL').value,d=document.getElementById('sesD').value,svc=document.getElementById('sesSvcType').value;
-  if(!ci||!li||!d||!svc){toast('Fill in all required fields');return}
-  const cl=await G('clients',ci),lo=await G('locations',li);
-  const wxEl=document.querySelector('#wxCond .ropt.sel');
-  const s={id:uid(),clientId:ci,locationId:li,clientName:cl.name,locationName:lo.name,date:d,
-    serviceType:svc,startTime:Date.now(),endTime:null,status:'active',
-    temperature:document.getElementById('sesTempF').value||null,
-    weather:wxEl?wxEl.dataset.value:null,
-    personnel:sesPersonnel.slice(),
-    reportingPeriod:getRPData(),
-    startNotes:document.getElementById('sesComments').value,
-    endNotes:null,
-    createdAt:Date.now()
-  };
-  await P('sessions',s);cSes=s;cCli=ci;cLoc=li;
-  localStorage.setItem('lastSes4',s.id);updSesUI();closeM('sesModal');nav('session');toast('Session started')}
-async function loadSes(id){const s=await G('sessions',id);if(!s)return;cSes=s;cCli=s.clientId;cLoc=s.locationId;localStorage.setItem('lastSes4',s.id);updSesUI();closeM('sesModal');nav('session');toast('Loaded')}
-async function delSes(id){if(!confirm('Delete session?'))return;const rs=(await A('readings')).filter(r=>r.sessionId===id);for(const r of rs)await D('readings',r.id);const gs=(await A('groups')).filter(g=>g.sessionId===id);for(const g of gs)await D('groups',g.id);await D('sessions',id);if(cSes&&cSes.id===id){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}renderSesList();toast('Deleted')}
-async function renderSesList(){const ss=(await A('sessions')).sort((a,b)=>b.createdAt-a.createdAt);const el=document.getElementById('sesList');if(!ss.length){el.innerHTML='<div class="empty"><p>No sessions.</p></div>';return}el.innerHTML=ss.map(s=>'<div class="li"><div onclick="loadSes(\''+s.id+'\')" style="flex:1"><div class="li-id">'+s.clientName+' — '+s.locationName+'</div><div class="li-sub">'+fD(s.date)+' • '+(s.serviceType||'')+' <span class="badge '+(s.status==='completed'?'b-complete':'b-active')+'">'+(s.status||'active')+'</span></div></div><button style="background:#fde8e8;border:none;color:var(--red);width:30px;height:30px;border-radius:8px;font-size:14px;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();delSes(\''+s.id+'\')">✕</button></div>').join('')}
-function updSesUI(){const bar=document.getElementById('sbar'),sub=document.getElementById('hdrSub');if(cSes){bar.style.display='flex';document.getElementById('sbarClient').textContent=cSes.clientName;document.getElementById('sbarLoc').textContent=cSes.locationName;document.getElementById('sbarDate').textContent=fD(cSes.date);sub.textContent=cSes.clientName+' — '+cSes.locationName;document.getElementById('noSes').style.display='none';document.getElementById('sesActive').style.display='block'}else{bar.style.display='none';sub.textContent='Setup your clients to begin';document.getElementById('noSes').style.display='block';document.getElementById('sesActive').style.display='none'}}
-
-function toggleSesInfo(){const b=document.getElementById('sesInfoBody');b.classList.toggle('open');document.getElementById('sesInfoChev').textContent=b.classList.contains('open')?'▲':'▼'}
-
-// === SESSION VIEW ===
-async function renderSes(){
-  if(!cSes)return;
-  // Session info
-  const settings=await getSettings();
-  let info='<div class="ses-info" style="margin-top:10px">';
-  info+='<strong>Service:</strong> '+(cSes.serviceType||'—')+'<br>';
-  info+='<strong>Date:</strong> '+fD(cSes.date)+'<br>';
-  info+='<strong>Start:</strong> '+fT(cSes.startTime)+'<br>';
-  if(cSes.endTime)info+='<strong>End:</strong> '+fT(cSes.endTime)+'<br>';
-  if(cSes.temperature)info+='<strong>Temp:</strong> '+cSes.temperature+'°F<br>';
-  if(cSes.weather)info+='<strong>Weather:</strong> '+(WX_LABELS[cSes.weather]||cSes.weather)+'<br>';
-  if(cSes.reportingPeriod)info+='<strong>Reporting Period:</strong> '+fmtRP(cSes.reportingPeriod)+'<br>';
-  if(cSes.personnel&&cSes.personnel.length){info+='<strong>Personnel:</strong> ';cSes.personnel.forEach(sp=>{const p=settings.personnel.find(x=>x.id===sp.personId);info+=(p?p.firstName+' '+p.lastName:'?')+' ('+sp.role+') '});info+='<br>'}
-  if(cSes.startNotes)info+='<strong>Notes:</strong> '+cSes.startNotes+'<br>';
-  if(cSes.endNotes)info+='<strong>Closing Notes:</strong> '+cSes.endNotes+'<br>';
-  if(cSes.status==='completed'&&cSes.startTime&&cSes.endTime){const dur=Math.round((cSes.endTime-cSes.startTime)/60000);const h=Math.floor(dur/60),m=dur%60;info+='<strong>Duration:</strong> '+h+'h '+m+'m<br>'}
-  info+='</div>';
-  document.getElementById('sesInfoBody').innerHTML=info;
-
-  // Show/hide based on service type
-  const isHydro=cSes.serviceType==='hydrogeologic';
-  document.getElementById('sesHydro').style.display=isHydro?'block':'none';
-  document.getElementById('sesGeneric').style.display=isHydro?'none':'block';
-
-  // Complete button
-  if(cSes.status==='completed'){
-    document.getElementById('sesCompleteArea').style.display='none';
-    document.getElementById('sesCompletedMsg').style.display='block';
-    const dur=cSes.startTime&&cSes.endTime?Math.round((cSes.endTime-cSes.startTime)/60000):0;
-    const h=Math.floor(dur/60),m=dur%60;
-    document.getElementById('sesCompTime').textContent='Completed '+fT(cSes.endTime)+' • Duration: '+h+'h '+m+'m';
-  }else{
-    document.getElementById('sesCompleteArea').style.display='block';
-    document.getElementById('sesCompletedMsg').style.display='none';
-  }
-
-  if(isHydro){
-    const fs=(await A('features')).filter(f=>f.locationId===cSes.locationId);
-    const rs=await A('readings');const sr=rs.filter(r=>r.sessionId===cSes.id);const done=new Set(sr.map(r=>r.featureId));
-    const ms=fs.filter(f=>f.type==='meter').sort((a,b)=>a.featureId.localeCompare(b.featureId)),ws=fs.filter(f=>f.type==='well').sort((a,b)=>a.featureId.localeCompare(b.featureId));
-    document.getElementById('sMD').textContent=ms.filter(m=>done.has(m.id)).length+'/'+ms.length;
-    document.getElementById('sWD').textContent=ws.filter(w=>done.has(w.id)).length+'/'+ws.length;
-    document.getElementById('sesMtrList').innerHTML=ms.map(m=>{const d=done.has(m.id);const r=sr.find(x=>x.featureId===m.id);return '<div class="li" onclick="openMtr(\''+m.id+'\')"><div><div class="li-id">'+m.featureId+'</div><div class="li-sub">'+(d?'Register: '+r.registerValue+' • '+r.photos.length+' photos':'Tap to record')+'</div></div><span class="badge '+(d?'b-done':'b-pend')+'">'+(d?'Done':'Pending')+'</span></div>'}).join('')||'<div class="empty"><p>No meters</p></div>';
-    document.getElementById('sesWellList').innerHTML=ws.map(w=>{const d=done.has(w.id);const r=sr.find(x=>x.featureId===w.id);return '<div class="li" onclick="openWell2(\''+w.id+'\')"><div><div class="li-id">'+w.featureId+'</div><div class="li-sub">'+(d?'Depth: '+r.waterDepth+'ft • '+r.pumpStatus:'Tap to record')+'</div></div><span class="badge '+(d?'b-done':'b-pend')+'">'+(d?'Done':'Pending')+'</span></div>'}).join('')||'<div class="empty"><p>No wells</p></div>';
-    // Groups
-    const grps=(await A('groups')).filter(g=>g.sessionId===cSes.id);
-    const grpEl=document.getElementById('sesGroupList');
-    if(!grps.length){grpEl.innerHTML='<div class="empty" style="padding:12px"><p>No groups yet. Create a group to take shared photos across features.</p></div>'}
-    else{grpEl.innerHTML=grps.map(g=>{
-      const memberNames=g.featureIds.map(fid=>{const feat=fs.find(x=>x.id===fid);return feat?feat.featureId:'?'}).join(', ');
-      return '<div class="li" onclick="openGroup(\''+g.id+'\')"><div><div class="li-id">'+g.name+'</div><div class="li-sub">'+g.featureIds.length+' features • '+(g.photos?g.photos.length:0)+' photos</div><div class="li-sub" style="font-size:11px;margin-top:2px">'+memberNames+'</div></div><span class="chevron">›</span></div>'
-    }).join('')}
-  }else{
-    // Load generic reading
-    const rs=await A('readings');const gr=rs.find(r=>r.sessionId===cSes.id&&r.type==='generic');
-    if(gr){document.getElementById('genNotes').value=gr.notes||'';genPh=gr.photos||[];renderGenPhotos()}
-    else{document.getElementById('genNotes').value='';genPh=[];renderGenPhotos()}
-  }
-}
-
-function renderGenPhotos(){const el=document.getElementById('genPhotos');el.innerHTML=genPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="genPh.splice('+i+',1);renderGenPhotos();autoSaveGeneric()">✕</button></div>').join('')}
-async function autoSaveGeneric(){if(!cSes)return;await P('readings',{id:cSes.id+'_generic',sessionId:cSes.id,featureId:'generic',type:'generic',notes:document.getElementById('genNotes').value,photos:genPh,timestamp:Date.now()})}
-
-// === SESSION COMPLETE ===
-function startCompleteSession(){showM('completeModal');document.getElementById('endNotes').value=''}
-async function confirmComplete(){cSes.endTime=Date.now();cSes.status='completed';cSes.endNotes=document.getElementById('endNotes').value;await P('sessions',cSes);closeM('completeModal');renderSes();toast('Session completed')}
-
-// === METER CHECK ===
-async function openMtr(fid){cFeat=fid;const f=await G('features',fid);mPh=[];regP=null;document.getElementById('mtrT').textContent='Meter: '+f.featureId;document.getElementById('mtrReg').value='';document.getElementById('mtrNotes').value='';document.getElementById('regSelArea').style.display='none';['cb_mObstructed','cb_mVegDestruct','cb_mVegHerb','cb_mExtended','cb_mDecon'].forEach(x=>document.getElementById(x).checked=false);
-const rs=await A('readings');const ex=rs.find(r=>r.sessionId===cSes.id&&r.featureId===fid);
-if(ex){mPh=ex.photos||[];regP=ex.registerPhoto||null;document.getElementById('mtrReg').value=ex.registerValue||'';document.getElementById('mtrNotes').value=ex.notes||'';if(regP){document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP}if(ex.checks){document.getElementById('cb_mObstructed').checked=!!ex.checks.obstructed;document.getElementById('cb_mVegDestruct').checked=!!ex.checks.vegDestruct;document.getElementById('cb_mVegHerb').checked=!!ex.checks.vegHerbicide;document.getElementById('cb_mExtended').checked=!!ex.checks.extended;document.getElementById('cb_mDecon').checked=!!ex.checks.decon}}
-renderMP();nav('meter');setTimeout(()=>{const w=document.getElementById('mtrMap');if(vMap){vMap.remove();vMap=null}if(f.lat&&f.lng){w.style.display='block';vMap=L.map(w).setView([f.lat,f.lng],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(vMap);L.marker([f.lat,f.lng]).addTo(vMap).bindPopup(f.featureId).openPopup();setTimeout(()=>vMap.invalidateSize(),200)}else{w.style.display='none'}},100)}
-function renderMP(){document.getElementById('mtrPhotos').innerHTML=mPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="mPh.splice('+i+',1);renderMP()">✕</button></div>').join('');document.getElementById('mtrPC').textContent=mPh.length?mPh.length+' photo'+(mPh.length>1?'s':''):''}
-function startRegSelect(){if(!mPh.length){toast('Take photos first');return}document.getElementById('regGrid').innerHTML=mPh.map((p,i)=>'<div class="pthumb" onclick="selRegP('+i+')" style="cursor:pointer"><img src="'+p+'"></div>').join('');showM('regModal')}
-function selRegP(i){regP=mPh[i];document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;closeM('regModal');setTimeout(()=>document.getElementById('mtrReg').focus(),300)}
-async function saveMtr(){const v=document.getElementById('mtrReg').value;if(!v){toast('Enter register value');return}if(!regP){toast('Select or take register photo');return}
-await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'meter',photos:mPh,registerPhoto:regP,registerValue:parseFloat(v),notes:document.getElementById('mtrNotes').value,checks:{obstructed:document.getElementById('cb_mObstructed').checked,vegDestruct:document.getElementById('cb_mVegDestruct').checked,vegHerbicide:document.getElementById('cb_mVegHerb').checked,extended:document.getElementById('cb_mExtended').checked,decon:document.getElementById('cb_mDecon').checked},timestamp:Date.now()});toast('Saved');nav('session')}
-
-// === WELL CHECK ===
-async function openWell2(fid){cFeat=fid;const f=await G('features',fid);wPh=[];document.getElementById('wellT').textContent='Well: '+f.featureId;['wDepth','wTemp','wCond','wTime','wellNotes'].forEach(x=>document.getElementById(x).value='');document.getElementById('wCondU').value='S';document.getElementById('condRow').style.display='none';document.querySelectorAll('#pStat .ropt').forEach(r=>r.classList.remove('sel'));['cb_wObstructed','cb_wVegDestruct','cb_wVegHerb','cb_wExtended','cb_wDecon'].forEach(x=>document.getElementById(x).checked=false);
-const rs=await A('readings');const ex=rs.find(r=>r.sessionId===cSes.id&&r.featureId===fid);
-if(ex){wPh=ex.photos||[];document.getElementById('wDepth').value=ex.waterDepth||'';document.getElementById('wTemp').value=ex.sampleTemp||'';if(ex.conductivityValue!=null){document.getElementById('wCond').value=ex.conductivityValue;document.getElementById('wCondU').value=ex.conductivityUnit||'S'}document.getElementById('wTime').value=ex.sampleTime||'';document.getElementById('wellNotes').value=ex.notes||'';if(ex.pumpStatus){const o=document.querySelector('#pStat [data-value="'+ex.pumpStatus+'"]');if(o)o.classList.add('sel')}if(ex.checks){document.getElementById('cb_wObstructed').checked=!!ex.checks.obstructed;document.getElementById('cb_wVegDestruct').checked=!!ex.checks.vegDestruct;document.getElementById('cb_wVegHerb').checked=!!ex.checks.vegHerbicide;document.getElementById('cb_wExtended').checked=!!ex.checks.extended;document.getElementById('cb_wDecon').checked=!!ex.checks.decon}convCond()}
-renderWP();nav('well');setTimeout(()=>{const w=document.getElementById('wellMap');if(vMap){vMap.remove();vMap=null}if(f.lat&&f.lng){w.style.display='block';vMap=L.map(w).setView([f.lat,f.lng],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(vMap);L.marker([f.lat,f.lng]).addTo(vMap).bindPopup(f.featureId).openPopup();setTimeout(()=>vMap.invalidateSize(),200)}else{w.style.display='none'}},100)}
-function renderWP(){document.getElementById('wellPhotos').innerHTML=wPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="wPh.splice('+i+',1);renderWP()">✕</button></div>').join('');document.getElementById('wellPC').textContent=wPh.length?wPh.length+' photo'+(wPh.length>1?'s':''):''}
-function convCond(){const v=parseFloat(document.getElementById('wCond').value),u=document.getElementById('wCondU').value;if(isNaN(v)){document.getElementById('condRow').style.display='none';return}let ms;if(u==='S')ms=v*1000;else if(u==='mS')ms=v;else ms=v/1000;document.getElementById('condRow').style.display='flex';document.getElementById('condVal').textContent=ms.toFixed(4)+' mS'}
-async function saveWell(){const pump=document.querySelector('#pStat .ropt.sel'),depth=document.getElementById('wDepth').value;if(!pump){toast('Select pump status');return}if(!depth){toast('Enter depth');return}const cv=parseFloat(document.getElementById('wCond').value),cu=document.getElementById('wCondU').value;let cms=null;if(!isNaN(cv)){if(cu==='S')cms=cv*1000;else if(cu==='mS')cms=cv;else cms=cv/1000}
-await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'well',photos:wPh,pumpStatus:pump.dataset.value,waterDepth:parseFloat(depth),sampleTemp:parseFloat(document.getElementById('wTemp').value)||null,conductivityValue:cv||null,conductivityUnit:cu,conductivityMS:cms,sampleTime:document.getElementById('wTime').value||null,notes:document.getElementById('wellNotes').value,checks:{obstructed:document.getElementById('cb_wObstructed').checked,vegDestruct:document.getElementById('cb_wVegDestruct').checked,vegHerbicide:document.getElementById('cb_wVegHerb').checked,extended:document.getElementById('cb_wExtended').checked,decon:document.getElementById('cb_wDecon').checked},timestamp:Date.now()});toast('Saved');nav('session')}
-
-// === CAMERA ===
-function capturePhoto(tgt){capTgt=tgt;document.getElementById('camIn').value='';document.getElementById('camIn').click()}
-document.getElementById('camIn').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){const img=new Image();img.onload=function(){const c=document.createElement('canvas');const M=1600;let w=img.width,h=img.height;if(w>M||h>M){if(w>h){h=h*M/w;w=M}else{w=w*M/h;h=M}}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);if(capTgt==='meter'){mPh.push(d);renderMP()}else if(capTgt==='well'){wPh.push(d);renderWP()}else if(capTgt==='register'){mPh.push(d);regP=d;renderMP();document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;setTimeout(()=>document.getElementById('mtrReg').focus(),300)}else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos()}};img.src=ev.target.result};r.readAsDataURL(f)});
-
-// === GROUPS ===
-async function openCreateGroup(){
-  if(!cSes)return;
-  document.getElementById('grpNameIn').value='';
-  const fs=(await A('features')).filter(f=>f.locationId===cSes.locationId);
-  const el=document.getElementById('grpFeatSelect');
-  el.innerHTML=fs.sort((a,b)=>a.type.localeCompare(b.type)||a.featureId.localeCompare(b.featureId)).map(f=>
-    '<div class="feat-sel-item" onclick="this.classList.toggle(\'checked\');this.querySelector(\'input\').checked=this.classList.contains(\'checked\')"><input type="checkbox" value="'+f.id+'" id="gfs_'+f.id+'"><label for="gfs_'+f.id+'">'+f.featureId+'</label><span class="feat-sel-type">'+f.type+'</span></div>'
-  ).join('');
-  showM('grpModal');
-}
-async function confirmCreateGroup(){
-  const name=document.getElementById('grpNameIn').value.trim();
-  if(!name){toast('Enter group name');return}
-  const checked=[...document.querySelectorAll('#grpFeatSelect input:checked')].map(cb=>cb.value);
-  if(checked.length<2){toast('Select at least 2 features');return}
-  const grp={id:uid(),sessionId:cSes.id,name:name,featureIds:checked,photos:[],notes:'',createdAt:Date.now()};
-  await P('groups',grp);
-  closeM('grpModal');renderSes();toast('Group created');
-}
-async function openGroup(id){
-  curGroupId=id;
-  const g=await G('groups',id);
-  if(!g)return;
-  grpPh=g.photos||[];
-  document.getElementById('grpTitle').textContent=g.name;
-  document.getElementById('grpNotes').value=g.notes||'';
-  // Render members
-  const fs=await A('features');
-  const el=document.getElementById('grpMemberList');
-  el.innerHTML=g.featureIds.map(fid=>{const f=fs.find(x=>x.id===fid);return '<span class="chip">'+(f?f.featureId+' <span style="opacity:.6">('+f.type+')</span>':'?')+'</span>'}).join('');
-  renderGrpPhotos();
-  nav('group');
-}
-function renderGrpPhotos(){
-  const el=document.getElementById('grpPhotos');
-  el.innerHTML=grpPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="grpPh.splice('+i+',1);renderGrpPhotos()">✕</button></div>').join('');
-  document.getElementById('grpPC').textContent=grpPh.length?grpPh.length+' group photo'+(grpPh.length>1?'s':''):'';
-}
-async function saveGroup(){
-  const g=await G('groups',curGroupId);
-  g.photos=grpPh;
-  g.notes=document.getElementById('grpNotes').value;
-  await P('groups',g);
-  toast('Group saved');nav('session');
-}
-async function deleteGroup(){
-  if(!confirm('Delete this group? Feature data is not affected.'))return;
-  await D('groups',curGroupId);
-  toast('Group deleted');nav('session');
-}
-// Helper: get group photos that apply to a feature in a session
-async function getGrpPhotos(sessionId,featureId){
-  const grps=(await A('groups')).filter(g=>g.sessionId===sessionId&&g.featureIds.includes(featureId));
-  let photos=[];
-  for(const g of grps){photos=photos.concat(g.photos||[])}
-  return photos;
-}
-
-// === EXPORT ===
-async function refExp(){const ss=(await A('sessions')).sort((a,b)=>b.createdAt-a.createdAt);document.getElementById('expSel').innerHTML='<option value="">-- Choose --</option>'+ss.map(s=>'<option value="'+s.id+'">'+s.clientName+' — '+s.locationName+' — '+fD(s.date)+' ('+s.serviceType+')</option>').join('');document.getElementById('expOpts').style.display='none'}
-function updExp(){document.getElementById('expOpts').style.display=document.getElementById('expSel').value?'block':'none'}
-function gES(){return document.getElementById('expSel').value}
-
-function checksToStr(c){if(!c)return'';const arr=[];if(c.obstructed)arr.push('Obstructed');if(c.vegDestruct)arr.push('Veg Destruct');if(c.vegHerbicide)arr.push('Herbicide App');if(c.extended)arr.push('Extended Effort');if(c.decon)arr.push('Decon Required');return arr.join('; ')}
-
-async function expMCSV(){const sid=gES();if(!sid)return;const s=await G('sessions',sid),rs=(await A('readings')).filter(r=>r.sessionId===sid&&r.type==='meter'),fs=await A('features');let csv='Meter ID,Register Value,Obstructed,Veg Destruct,Herbicide,Extended,Decon,Photos,Notes,Timestamp\n';rs.sort((a,b)=>{const fa=fs.find(f=>f.id===a.featureId),fb=fs.find(f=>f.id===b.featureId);return(fa?.featureId||'').localeCompare(fb?.featureId||'')}).forEach(r=>{const f=fs.find(x=>x.id===r.featureId);const c=r.checks||{};csv+='"'+(f?f.featureId:'')+'",'+(r.registerValue)+','+(c.obstructed?'Y':'N')+','+(c.vegDestruct?'Y':'N')+','+(c.vegHerbicide?'Y':'N')+','+(c.extended?'Y':'N')+','+(c.decon?'Y':'N')+','+r.photos.length+',"'+(r.notes||'').replace(/"/g,'""')+'","'+new Date(r.timestamp).toLocaleString()+'"\n'});dlF(csv,'meters_'+s.date+'.csv','text/csv');toast('Downloaded')}
-
-async function expWCSV(){const sid=gES();if(!sid)return;const s=await G('sessions',sid),rs=(await A('readings')).filter(r=>r.sessionId===sid&&r.type==='well'),fs=await A('features');let csv='Well ID,Pump Status,Depth (ft),Temp (F),Cond (mS),Time,Obstructed,Veg Destruct,Herbicide,Extended,Decon,Photos,Notes\n';rs.forEach(r=>{const f=fs.find(x=>x.id===r.featureId);const c=r.checks||{};csv+='"'+(f?f.featureId:'')+'","'+r.pumpStatus+'",'+r.waterDepth+','+(r.sampleTemp||'')+','+(r.conductivityMS!=null?r.conductivityMS:'')+',"'+(r.sampleTime||'')+'",'+(c.obstructed?'Y':'N')+','+(c.vegDestruct?'Y':'N')+','+(c.vegHerbicide?'Y':'N')+','+(c.extended?'Y':'N')+','+(c.decon?'Y':'N')+','+r.photos.length+',"'+(r.notes||'')+'"\n'});dlF(csv,'wells_'+s.date+'.csv','text/csv');toast('Downloaded')}
-
-async function expSum(){const sid=gES();if(!sid)return;const s=await G('sessions',sid),rs=await A('readings'),fs=await A('features');const mr=rs.filter(r=>r.sessionId===sid&&r.type==='meter'),wr=rs.filter(r=>r.sessionId===sid&&r.type==='well'),gr=rs.find(r=>r.sessionId===sid&&r.type==='generic');let csv='ACS Environmental - Field Summary\nClient: '+s.clientName+'\nLocation: '+s.locationName+'\nService: '+s.serviceType+'\nDate: '+fD(s.date)+'\nStart: '+fT(s.startTime)+'\nEnd: '+(s.endTime?fT(s.endTime):'In Progress')+'\n';if(s.temperature)csv+='Temp: '+s.temperature+'F\n';if(s.weather)csv+='Weather: '+(WX_LABELS[s.weather]||s.weather)+'\n';if(s.reportingPeriod)csv+='Reporting Period: '+fmtRP(s.reportingPeriod)+'\n';csv+='\n';if(mr.length){csv+='METERS\nID,Register,Conditions,Notes\n';mr.forEach(r=>{const f=fs.find(x=>x.id===r.featureId);csv+='"'+(f?f.featureId:'')+'",'+(r.registerValue)+',"'+checksToStr(r.checks)+'","'+(r.notes||'')+'"\n'})}if(wr.length){csv+='\nWELLS\nID,Pump,Depth,Temp,Cond(mS),Time,Conditions,Notes\n';wr.forEach(r=>{const f=fs.find(x=>x.id===r.featureId);csv+='"'+(f?f.featureId:'')+'","'+r.pumpStatus+'",'+r.waterDepth+','+(r.sampleTemp||'')+','+(r.conductivityMS!=null?r.conductivityMS:'')+',"'+(r.sampleTime||'')+'","'+checksToStr(r.checks)+'","'+(r.notes||'')+'"\n'})}if(gr&&gr.notes)csv+='\nSERVICE NOTES\n"'+gr.notes+'"\n';dlF(csv,'summary_'+s.date+'.csv','text/csv');toast('Downloaded')}
-
-// === PDF EXPORT ===
-async function expPDF(mode){
-  const sid=gES();if(!sid)return;
-  toast('Generating PDF...');
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
-  const s=await G('sessions',sid);
-  const settings=await getSettings();
-  const rs=await A('readings');const fs=await A('features');
-  const mr=rs.filter(r=>r.sessionId===sid&&r.type==='meter');
-  const wr=rs.filter(r=>r.sessionId===sid&&r.type==='well');
-  const gr=rs.find(r=>r.sessionId===sid&&r.type==='generic');
-  const pw=215.9,ph=279.4,mg=15;let y=mg;
-
-  function addHeader(){
-    doc.setFillColor(45,90,39);doc.rect(0,0,pw,28,  'F');
-    doc.setTextColor(255);doc.setFontSize(14);doc.setFont(undefined,'bold');
-    doc.text('AgriWorks Crop Solutions | ACS Environmental',pw/2,12,{align:'center'});
-    doc.setFontSize(10);doc.setFont(undefined,'normal');
-    doc.text('Field Report',pw/2,20,{align:'center'});
-    doc.setTextColor(0);y=35;
-  }
-  function checkPage(need){if(y+need>ph-mg){doc.addPage();addHeader();return true}return false}
-  function addField(label,val){if(!val)return;checkPage(8);doc.setFontSize(9);doc.setFont(undefined,'bold');doc.text(label+': ',mg,y);doc.setFont(undefined,'normal');doc.text(String(val),mg+doc.getTextWidth(label+': '),y);y+=6}
-  function addSection(title){checkPage(14);y+=4;doc.setFontSize(12);doc.setFont(undefined,'bold');doc.setTextColor(45,90,39);doc.text(title,mg,y);y+=2;doc.setDrawColor(45,90,39);doc.line(mg,y,pw-mg,y);y+=6;doc.setTextColor(0)}
-
-  addHeader();
-  // Session info
-  addField('Client',s.clientName);addField('Location',s.locationName);addField('Service Type',s.serviceType);
-  addField('Date',fD(s.date));addField('Start Time',fT(s.startTime));
-  if(s.endTime){addField('End Time',fT(s.endTime));const dur=Math.round((s.endTime-s.startTime)/60000);addField('Duration',Math.floor(dur/60)+'h '+dur%60+'m')}
-  if(s.temperature)addField('Temperature',s.temperature+'°F');
-  if(s.weather)addField('Weather',WX_LABELS[s.weather]||s.weather);
-  if(s.reportingPeriod)addField('Reporting Period',fmtRP(s.reportingPeriod));
-  if(s.personnel&&s.personnel.length){const pStr=s.personnel.map(sp=>{const p=settings.personnel.find(x=>x.id===sp.personId);return (p?p.firstName+' '+p.lastName:'?')+' ('+sp.role+')'}).join(', ');addField('Personnel',pStr)}
-  if(s.startNotes)addField('Start Notes',s.startNotes);
-  if(s.endNotes)addField('Closing Notes',s.endNotes);
-
-  // Meters
-  if(mr.length){
-    addSection('Water Meters');
-    const mData=mr.sort((a,b)=>{const fa=fs.find(f=>f.id===a.featureId),fb=fs.find(f=>f.id===b.featureId);return(fa?.featureId||'').localeCompare(fb?.featureId||'')}).map(r=>{const f=fs.find(x=>x.id===r.featureId);return[(f?f.featureId:''),r.registerValue,checksToStr(r.checks),r.notes||'']});
-    doc.autoTable({startY:y,head:[['Meter ID','Register','Conditions','Notes']],body:mData,margin:{left:mg,right:mg},styles:{fontSize:8},headStyles:{fillColor:[45,90,39]},theme:'grid'});
-    y=doc.lastAutoTable.finalY+6;
-
-    if(mode==='full'){
-      for(const r of mr){
-        const f=fs.find(x=>x.id===r.featureId);
-        const gp=await getGrpPhotos(sid,r.featureId);
-        if(r.photos.length||r.registerPhoto||gp.length){
-          checkPage(60);
-          doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text('Meter: '+(f?f.featureId:''),mg,y);y+=6;
-          const allPics=[...(r.registerPhoto?[r.registerPhoto]:[]),...r.photos.filter(p=>p!==r.registerPhoto),...gp];
-          const regCount=r.registerPhoto?1:0;const ownCount=r.photos.filter(p=>p!==r.registerPhoto).length;
-          for(let i=0;i<allPics.length;i++){
-            checkPage(55);
-            try{doc.addImage(allPics[i],'JPEG',mg,y,50,37.5);
-            if(i===0&&r.registerPhoto)doc.text('Register Photo',mg+52,y+6);
-            else if(i>=regCount+ownCount)doc.text('Group Photo',mg+52,y+6);
-            y+=40}catch(e){}
-          }
-          y+=4;
-        }
-      }
-    }
-  }
-
-  // Wells
-  if(wr.length){
-    addSection('Wells');
-    const wData=wr.map(r=>{const f=fs.find(x=>x.id===r.featureId);return[(f?f.featureId:''),r.pumpStatus,r.waterDepth,(r.sampleTemp||''),(r.conductivityMS!=null?r.conductivityMS.toFixed(4):''),(r.sampleTime||''),checksToStr(r.checks),r.notes||'']});
-    doc.autoTable({startY:y,head:[['Well ID','Pump','Depth(ft)','Temp(F)','Cond(mS)','Time','Conditions','Notes']],body:wData,margin:{left:mg,right:mg},styles:{fontSize:7},headStyles:{fillColor:[45,90,39]},theme:'grid'});
-    y=doc.lastAutoTable.finalY+6;
-
-    if(mode==='full'){
-      for(const r of wr){
-        const f=fs.find(x=>x.id===r.featureId);
-        const gp=await getGrpPhotos(sid,r.featureId);
-        if(r.photos.length||gp.length){
-          checkPage(60);
-          doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text('Well: '+(f?f.featureId:''),mg,y);y+=6;
-          const allPics=[...r.photos,...gp];
-          for(let i=0;i<allPics.length;i++){
-            checkPage(55);
-            try{doc.addImage(allPics[i],'JPEG',mg,y,50,37.5);
-            if(i>=r.photos.length)doc.text('Group Photo',mg+52,y+6);
-            y+=40}catch(e){}
-          }
-          y+=4;
-        }
-      }
-    }
-  }
-
-  // Generic service notes
-  if(gr){
-    addSection('Service Notes');
-    if(gr.notes){const lines=doc.splitTextToSize(gr.notes,pw-mg*2);checkPage(lines.length*5);doc.setFontSize(9);doc.setFont(undefined,'normal');doc.text(lines,mg,y);y+=lines.length*5+4}
-    if(mode==='full'&&gr.photos&&gr.photos.length){
-      for(let i=0;i<gr.photos.length;i++){checkPage(55);try{doc.addImage(gr.photos[i],'JPEG',mg,y,50,37.5);y+=40}catch(e){}}
-    }
-  }
-
-  doc.save('Field_Report_'+s.clientName+'_'+s.date+(mode==='full'?'_Full':'')+'.pdf');
-  toast('PDF downloaded');
-}
-
-// === PACKAGE EXPORT ===
-async function expPackage(){
-  const sid=gES();if(!sid)return;
-  if(typeof JSZip==='undefined'){toast('Need internet once for ZIP');return}
-  toast('Building package...');
-  const {jsPDF}=window.jspdf;
-  const s=await G('sessions',sid);const rs=(await A('readings')).filter(r=>r.sessionId===sid);const fs=await A('features');const settings=await getSettings();
-  // Generate PDF blob
-  // Reuse PDF logic inline — generate data-only PDF as blob
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
-  const pw=215.9,mg=15;let y=mg;
-  doc.setFillColor(45,90,39);doc.rect(0,0,pw,28,'F');doc.setTextColor(255);doc.setFontSize(14);doc.setFont(undefined,'bold');doc.text('AgriWorks Crop Solutions | ACS Environmental',pw/2,12,{align:'center'});doc.setFontSize(10);doc.setFont(undefined,'normal');doc.text('Field Report',pw/2,20,{align:'center'});doc.setTextColor(0);y=35;
-  doc.setFontSize(9);
-  const af=(l,v)=>{if(!v)return;doc.setFont(undefined,'bold');doc.text(l+': ',mg,y);doc.setFont(undefined,'normal');doc.text(String(v),mg+doc.getTextWidth(l+': '),y);y+=6};
-  af('Client',s.clientName);af('Location',s.locationName);af('Service',s.serviceType);af('Date',fD(s.date));
-  const pdfBlob=doc.output('blob');
-
-  const zip=new JSZip();
-  zip.file('Field_Report_'+s.date+'.pdf',pdfBlob);
-  const photoFolder=zip.folder('photos');
-  for(const r of rs){
-    const f=fs.find(x=>x.id===r.featureId);const fn=f?(r.type!=='generic'?r.type+'s/'+f.featureId:'service_photos'):'other';
-    const folder=photoFolder.folder(fn);
-    if(r.photos)r.photos.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('photo_'+(i+1)+'.jpg',b,{base64:true})});
-    if(r.registerPhoto){const b=r.registerPhoto.split(',')[1];if(b)folder.file('register_photo.jpg',b,{base64:true})}
-    const gp=await getGrpPhotos(sid,r.featureId);gp.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('group_photo_'+(i+1)+'.jpg',b,{base64:true})});
-  }
-  const blob=await zip.generateAsync({type:'blob'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ACS_Package_'+s.clientName+'_'+s.date+'.zip';a.click();toast('Package downloaded');
-}
-
-async function expZip(){const sid=gES();if(!sid)return;if(typeof JSZip==='undefined'){toast('Need internet once');return}toast('Building ZIP...');const zip=new JSZip();const s=await G('sessions',sid);const rs=(await A('readings')).filter(r=>r.sessionId===sid);const fs=await A('features');for(const r of rs){const f=fs.find(x=>x.id===r.featureId);const fn=f?(r.type!=='generic'?r.type+'s/'+f.featureId:'service'):'other';const folder=zip.folder(fn);if(r.photos)r.photos.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('photo_'+(i+1)+'.jpg',b,{base64:true})});if(r.registerPhoto){const b=r.registerPhoto.split(',')[1];if(b)folder.file('register_photo.jpg',b,{base64:true})}
-// Append group photos
-const gp=await getGrpPhotos(sid,r.featureId);gp.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('group_photo_'+(i+1)+'.jpg',b,{base64:true})})}
-// Also export group folders
-const grps=(await A('groups')).filter(g=>g.sessionId===sid);for(const g of grps){if(g.photos&&g.photos.length){const folder=zip.folder('groups/'+g.name.replace(/[^a-zA-Z0-9_-]/g,'_'));g.photos.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('photo_'+(i+1)+'.jpg',b,{base64:true})})}}
-const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='photos_'+s.clientName+'_'+s.date+'.zip';a.click();toast('ZIP downloaded')}
-function dlF(c,n,t){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click()}
-
-// === PROFILES EXPORT/IMPORT ===
-async function exportProfiles(){
-  const clients=await A('clients');
-  const locations=await A('locations');
-  const features=await A('features');
-  const settings=await getSettings();
-  const data={
-    exportDate:new Date().toISOString(),
-    appVersion:'ACSField4',
-    clients,locations,features,
-    settings:{roles:settings.roles,personnel:settings.personnel}
-  };
-  const json=JSON.stringify(data,null,2);
-  const blob=new Blob([json],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='ACS_Profiles_'+new Date().toISOString().split('T')[0]+'.json';
-  a.click();
-  toast('Profiles exported');
-}
-
-async function importProfiles(event){
-  const file=event.target.files[0];
-  if(!file)return;
-  const status=document.getElementById('importStatus');
-  status.textContent='Reading file...';
-  try{
-    const text=await file.text();
-    const data=JSON.parse(text);
-    if(!data.clients||!data.locations||!data.features){
-      status.innerHTML='<span style="color:var(--red)">Invalid profile file.</span>';return;
-    }
-    // Build existing ID sets to skip duplicates
-    const existCli=new Set((await A('clients')).map(c=>c.id));
-    const existLoc=new Set((await A('locations')).map(l=>l.id));
-    const existFeat=new Set((await A('features')).map(f=>f.id));
-    let cAdded=0,lAdded=0,fAdded=0,cSkipped=0;
-    // Check for name-based duplicates too
-    const existCliNames=new Set((await A('clients')).map(c=>c.name.toLowerCase()));
-
-    for(const c of data.clients){
-      if(existCli.has(c.id)){cSkipped++;continue}
-      if(existCliNames.has(c.name.toLowerCase())){cSkipped++;continue}
-      await P('clients',c);cAdded++;
-    }
-    for(const l of data.locations){
-      if(existLoc.has(l.id))continue;
-      await P('locations',l);lAdded++;
-    }
-    for(const f of data.features){
-      if(existFeat.has(f.id))continue;
-      await P('features',f);fAdded++;
-    }
-    // Merge settings (roles + personnel)
-    if(data.settings){
-      const s=await getSettings();
-      if(data.settings.roles){
-        for(const r of data.settings.roles){
-          if(!s.roles.includes(r)&&s.roles.length<10)s.roles.push(r);
-        }
-      }
-      if(data.settings.personnel){
-        const existIds=new Set(s.personnel.map(p=>p.id));
-        const existNames=new Set(s.personnel.map(p=>(p.firstName+' '+p.lastName).toLowerCase()));
-        for(const p of data.settings.personnel){
-          if(existIds.has(p.id))continue;
-          if(existNames.has((p.firstName+' '+p.lastName).toLowerCase()))continue;
-          if(s.personnel.length<25)s.personnel.push(p);
-        }
-      }
-      await P('settings',s);
-    }
-    status.innerHTML='<span style="color:var(--ok)">Imported: '+cAdded+' clients, '+lAdded+' locations, '+fAdded+' features'+(cSkipped?' ('+cSkipped+' duplicates skipped)':'')+'</span>';
     renderClis();renderSettings();
     toast('Import complete');
   }catch(e){
