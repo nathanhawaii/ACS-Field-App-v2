@@ -923,6 +923,45 @@ async function renderSes(){
 function renderGenPhotos(){const el=document.getElementById('genPhotos');el.innerHTML=genPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="genPh.splice('+i+',1);renderGenPhotos();autoSaveGeneric()">✕</button></div>').join('')}
 async function autoSaveGeneric(){if(!cSes)return;await P('readings',{id:cSes.id+'_generic',sessionId:cSes.id,featureId:'generic',type:'generic',notes:document.getElementById('genNotes').value,photos:genPh,timestamp:Date.now()})}
 
+// === NEXT FEATURE NAV ===
+async function goNext(){
+  if(!cSes)return nav('session');
+  const fs=(await A('features')).filter(f=>f.locationId===cSes.locationId);
+  const rs=await A('readings');
+  const done=new Set(rs.filter(r=>r.sessionId===cSes.id).map(r=>r.featureId));
+  // Build ordered list: meters, wells, custom
+  const ordered=[];
+  fs.filter(f=>f.type==='meter').sort((a,b)=>a.featureId.localeCompare(b.featureId)).forEach(f=>ordered.push(f));
+  fs.filter(f=>f.type==='well').sort((a,b)=>a.featureId.localeCompare(b.featureId)).forEach(f=>ordered.push(f));
+  fs.filter(f=>f.type==='custom').sort((a,b)=>a.featureId.localeCompare(b.featureId)).forEach(f=>ordered.push(f));
+  // Find current position and next pending
+  const curIdx=ordered.findIndex(f=>f.id===cFeat);
+  // Look forward from current position first
+  for(let i=curIdx+1;i<ordered.length;i++){
+    if(!done.has(ordered[i].id)){
+      const f=ordered[i];
+      toast('Saved ✓ → Next: '+f.featureId);
+      if(f.type==='meter')return openMtr(f.id);
+      if(f.type==='well')return openWell2(f.id);
+      if(f.type==='custom')return openCustomCheck(f.id);
+    }
+  }
+  // Then wrap around to check before current position
+  for(let i=0;i<curIdx;i++){
+    if(!done.has(ordered[i].id)){
+      const f=ordered[i];
+      toast('Saved ✓ → Next: '+f.featureId);
+      if(f.type==='meter')return openMtr(f.id);
+      if(f.type==='well')return openWell2(f.id);
+      if(f.type==='custom')return openCustomCheck(f.id);
+    }
+  }
+  // All done
+  const total=ordered.length;const doneCount=ordered.filter(f=>done.has(f.id)).length;
+  toast('All '+total+' features complete! ✓');
+  nav('session');
+}
+
 // === SESSION COMPLETE ===
 function startCompleteSession(){showM('completeModal');document.getElementById('endNotes').value=''}
 async function confirmComplete(){cSes.endTime=Date.now();cSes.status='completed';cSes.endNotes=document.getElementById('endNotes').value;await P('sessions',cSes);closeM('completeModal');renderSes();toast('Session completed')}
@@ -942,7 +981,7 @@ function renderMP(){document.getElementById('mtrPhotos').innerHTML=mPh.map((p,i)
 function startRegSelect(){if(!mPh.length){toast('Take photos first');return}document.getElementById('regGrid').innerHTML=mPh.map((p,i)=>'<div class="pthumb" onclick="selRegP('+i+')" style="cursor:pointer"><img src="'+p+'"></div>').join('');showM('regModal')}
 function selRegP(i){regP=mPh[i];document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;closeM('regModal');setTimeout(()=>document.getElementById('mtrReg').focus(),300)}
 async function saveMtr(){const v=document.getElementById('mtrReg').value;if(!v){toast('Enter register value');return}if(!regP){toast('Select or take register photo');return}
-await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'meter',photos:mPh,registerPhoto:regP,registerValue:parseFloat(v),notes:document.getElementById('mtrNotes').value,checks:{obstructed:document.getElementById('cb_mObstructed').checked,vegDestruct:document.getElementById('cb_mVegDestruct').checked,vegHerbicide:document.getElementById('cb_mVegHerb').checked,extended:document.getElementById('cb_mExtended').checked,decon:document.getElementById('cb_mDecon').checked},timestamp:Date.now()});toast('Saved');nav('session')}
+await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'meter',photos:mPh,registerPhoto:regP,registerValue:parseFloat(v),notes:document.getElementById('mtrNotes').value,checks:{obstructed:document.getElementById('cb_mObstructed').checked,vegDestruct:document.getElementById('cb_mVegDestruct').checked,vegHerbicide:document.getElementById('cb_mVegHerb').checked,extended:document.getElementById('cb_mExtended').checked,decon:document.getElementById('cb_mDecon').checked},timestamp:Date.now()});toast('Saved');goNext()}
 
 // === WELL CHECK ===
 async function openWell2(fid){cFeat=fid;const f=await G('features',fid);wPh=[];document.getElementById('wellT').textContent='Well: '+f.featureId;['wDepth','wTemp','wCond','wTime','wellNotes'].forEach(x=>document.getElementById(x).value='');document.getElementById('wCondU').value='S';document.getElementById('condRow').style.display='none';document.querySelectorAll('#pStat .ropt').forEach(r=>r.classList.remove('sel'));['cb_wObstructed','cb_wVegDestruct','cb_wVegHerb','cb_wExtended','cb_wDecon'].forEach(x=>document.getElementById(x).checked=false);
@@ -952,7 +991,7 @@ renderWP();nav('well');setTimeout(()=>{const w=document.getElementById('wellMap'
 function renderWP(){document.getElementById('wellPhotos').innerHTML=wPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="wPh.splice('+i+',1);renderWP()">✕</button></div>').join('');document.getElementById('wellPC').textContent=wPh.length?wPh.length+' photo'+(wPh.length>1?'s':''):''}
 function convCond(){const v=parseFloat(document.getElementById('wCond').value),u=document.getElementById('wCondU').value;if(isNaN(v)){document.getElementById('condRow').style.display='none';return}let ms;if(u==='S')ms=v*1000;else if(u==='mS')ms=v;else ms=v/1000;document.getElementById('condRow').style.display='flex';document.getElementById('condVal').textContent=ms.toFixed(4)+' mS'}
 async function saveWell(){const pump=document.querySelector('#pStat .ropt.sel'),depth=document.getElementById('wDepth').value;if(!pump){toast('Select pump status');return}if(!depth){toast('Enter depth');return}const cv=parseFloat(document.getElementById('wCond').value),cu=document.getElementById('wCondU').value;let cms=null;if(!isNaN(cv)){if(cu==='S')cms=cv*1000;else if(cu==='mS')cms=cv;else cms=cv/1000}
-await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'well',photos:wPh,pumpStatus:pump.dataset.value,waterDepth:parseFloat(depth),sampleTemp:parseFloat(document.getElementById('wTemp').value)||null,conductivityValue:cv||null,conductivityUnit:cu,conductivityMS:cms,sampleTime:document.getElementById('wTime').value||null,notes:document.getElementById('wellNotes').value,checks:{obstructed:document.getElementById('cb_wObstructed').checked,vegDestruct:document.getElementById('cb_wVegDestruct').checked,vegHerbicide:document.getElementById('cb_wVegHerb').checked,extended:document.getElementById('cb_wExtended').checked,decon:document.getElementById('cb_wDecon').checked},timestamp:Date.now()});toast('Saved');nav('session')}
+await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'well',photos:wPh,pumpStatus:pump.dataset.value,waterDepth:parseFloat(depth),sampleTemp:parseFloat(document.getElementById('wTemp').value)||null,conductivityValue:cv||null,conductivityUnit:cu,conductivityMS:cms,sampleTime:document.getElementById('wTime').value||null,notes:document.getElementById('wellNotes').value,checks:{obstructed:document.getElementById('cb_wObstructed').checked,vegDestruct:document.getElementById('cb_wVegDestruct').checked,vegHerbicide:document.getElementById('cb_wVegHerb').checked,extended:document.getElementById('cb_wExtended').checked,decon:document.getElementById('cb_wDecon').checked},timestamp:Date.now()});toast('Saved');goNext()}
 
 // === CAMERA ===
 function capturePhoto(tgt){capTgt=tgt;document.getElementById('camIn').value='';document.getElementById('camIn').click()}
@@ -995,6 +1034,108 @@ document.getElementById('camIn').addEventListener('change',function(e){const f=e
 
 // === HELPERS ===
 function fmtNum(n){if(n==null||isNaN(n))return'—';return Number(n).toLocaleString('en-US')}
+
+// Polynomial regression (degree 2)
+function polyRegression(points,degree){
+  const n=points.length;if(n<degree+1)return null;
+  // Build normal equations matrix
+  const m=degree+1;const M=[];const B=[];
+  for(let i=0;i<m;i++){M[i]=[];for(let j=0;j<m;j++){let s=0;for(let k=0;k<n;k++)s+=Math.pow(points[k].x,i+j);M[i][j]=s}let s=0;for(let k=0;k<n;k++)s+=points[k].y*Math.pow(points[k].x,i);B[i]=s}
+  // Gaussian elimination
+  for(let i=0;i<m;i++){let mx=i;for(let j=i+1;j<m;j++)if(Math.abs(M[j][i])>Math.abs(M[mx][i]))mx=j;[M[i],M[mx]]=[M[mx],M[i]];[B[i],B[mx]]=[B[mx],B[i]];if(Math.abs(M[i][i])<1e-12)return null;for(let j=i+1;j<m;j++){const f=M[j][i]/M[i][i];for(let k=i;k<m;k++)M[j][k]-=f*M[i][k];B[j]-=f*B[i]}}
+  const c=new Array(m);for(let i=m-1;i>=0;i--){c[i]=B[i];for(let j=i+1;j<m;j++)c[i]-=M[i][j]*c[j];c[i]/=M[i][i]}
+  return x=>c.reduce((s,ci,i)=>s+ci*Math.pow(x,i),0);
+}
+
+// Render usage chart to canvas, return data URL
+function renderMeterChart(usageData,featureId){
+  // usageData: [{label, usage, x}] sorted chronologically
+  if(usageData.length<2)return null;
+  const W=700,H=300,pad={t:40,r:30,b:60,l:70};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  // Background
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
+  // Title
+  ctx.fillStyle='#1a1a1a';ctx.font='bold 14px -apple-system,sans-serif';
+  ctx.fillText(featureId+' — Usage History & Forecast',pad.l,24);
+  // Data range
+  const maxUsage=Math.max(...usageData.map(d=>d.usage),1);
+  const yMax=Math.ceil(maxUsage*1.2);
+  const barCount=usageData.length;
+  const forecastCount=6;
+  const totalSlots=barCount+forecastCount;
+  const barW=Math.min(cw/totalSlots*0.7,40);
+  const slotW=cw/totalSlots;
+  // Grid lines
+  ctx.strokeStyle='#e0e0e0';ctx.lineWidth=1;
+  const gridLines=5;
+  for(let i=0;i<=gridLines;i++){
+    const gy=pad.t+ch-ch*(i/gridLines);
+    ctx.beginPath();ctx.moveTo(pad.l,gy);ctx.lineTo(W-pad.r,gy);ctx.stroke();
+    ctx.fillStyle='#6b6b6b';ctx.font='11px -apple-system,sans-serif';ctx.textAlign='right';
+    ctx.fillText(fmtNum(Math.round(yMax*i/gridLines)),pad.l-8,gy+4);
+  }
+  // Bars
+  ctx.fillStyle='#3d7a35';
+  usageData.forEach((d,i)=>{
+    const x=pad.l+i*slotW+(slotW-barW)/2;
+    const bh=ch*(d.usage/yMax);
+    const by=pad.t+ch-bh;
+    ctx.fillRect(x,by,barW,bh);
+    // Label
+    ctx.save();ctx.translate(x+barW/2,pad.t+ch+12);ctx.rotate(-Math.PI/4);
+    ctx.fillStyle='#6b6b6b';ctx.font='10px -apple-system,sans-serif';ctx.textAlign='right';
+    ctx.fillText(d.label,0,0);ctx.restore();
+  });
+  // Polynomial regression
+  const points=usageData.map((d,i)=>({x:i,y:d.usage}));
+  const regFn=polyRegression(points,Math.min(2,points.length-1));
+  if(regFn){
+    // Trend line over data
+    ctx.strokeStyle='#2471a3';ctx.lineWidth=2.5;ctx.beginPath();
+    for(let i=0;i<=barCount-1;i+=0.2){
+      const px=pad.l+i*slotW+slotW/2;
+      const py=pad.t+ch-ch*(Math.max(0,regFn(i))/yMax);
+      if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+    }ctx.stroke();
+    // Forecast (dashed)
+    ctx.setLineDash([6,4]);ctx.strokeStyle='#d4890a';ctx.lineWidth=2;ctx.beginPath();
+    const lastX=barCount-1;
+    const startPx=pad.l+lastX*slotW+slotW/2;
+    const startPy=pad.t+ch-ch*(Math.max(0,regFn(lastX))/yMax);
+    ctx.moveTo(startPx,startPy);
+    for(let i=barCount;i<totalSlots;i+=0.2){
+      const px=pad.l+i*slotW+slotW/2;
+      const py=pad.t+ch-ch*(Math.max(0,regFn(i))/yMax);
+      ctx.lineTo(px,py);
+    }ctx.stroke();ctx.setLineDash([]);
+    // Forecast labels
+    for(let i=barCount;i<totalSlots;i++){
+      const x=pad.l+i*slotW+slotW/2;
+      ctx.save();ctx.translate(x,pad.t+ch+12);ctx.rotate(-Math.PI/4);
+      ctx.fillStyle='#d4890a';ctx.font='10px -apple-system,sans-serif';ctx.textAlign='right';
+      ctx.fillText('+'+(i-barCount+1),0,0);ctx.restore();
+      // Forecast bar (faded)
+      const fv=Math.max(0,regFn(i));
+      const bh=ch*(fv/yMax);const by=pad.t+ch-bh;
+      ctx.fillStyle='rgba(212,137,10,0.2)';
+      ctx.fillRect(pad.l+i*slotW+(slotW-barW)/2,by,barW,bh);
+    }
+  }
+  // Legend
+  ctx.fillStyle='#3d7a35';ctx.fillRect(W-pad.r-160,8,12,12);
+  ctx.fillStyle='#1a1a1a';ctx.font='11px -apple-system,sans-serif';ctx.textAlign='left';ctx.fillText('Actual Usage',W-pad.r-144,18);
+  ctx.fillStyle='#2471a3';ctx.fillRect(W-pad.r-80,8,12,12);
+  ctx.fillStyle='#1a1a1a';ctx.fillText('Trend',W-pad.r-64,18);
+  ctx.fillStyle='#d4890a';ctx.fillRect(W-pad.r-30,8,12,12);
+  ctx.fillText('Forecast',W-pad.r-14,18);
+  // Axes
+  ctx.strokeStyle='#1a1a1a';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,pad.t+ch);ctx.lineTo(W-pad.r,pad.t+ch);ctx.stroke();
+  return canvas.toDataURL('image/png',0.9);
+}
 function togWellLink(){const cat=document.querySelector('#mCat .ropt.sel');document.getElementById('wellLinkSection').style.display=cat&&cat.dataset.value==='well_totalizer'?'block':'none'}
 async function loadWellOptions(){const ws=(await A('features')).filter(f=>f.locationId===cLoc&&f.type==='well');document.getElementById('linkedWell').innerHTML='<option value="">-- Select Well --</option>'+ws.map(w=>'<option value="'+w.id+'">'+w.featureId+'</option>').join('')}
 
@@ -1108,7 +1249,7 @@ async function saveCustom(){
   const f=await G('features',cFeat);const cfs=f.customFields||[];
   const fieldValues={};cfs.forEach((cf,i)=>{const el=document.getElementById('cf_'+i);if(el)fieldValues[cf.name]=el.value});
   await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'custom',customLabel:f.customLabel||'Custom',photos:custPh,fieldValues,notes:document.getElementById('custNotes').value,timestamp:Date.now()});
-  toast('Saved');nav('session');
+  toast('Saved');goNext();
 }
 
 // === GROUPS ===
@@ -1292,6 +1433,35 @@ async function expPDF(mode){
           const labels=allPics.map((p,i)=>{if(i===0&&r.registerPhoto)return'Register';if(i>=r.photos.length)return'Group';return''});
           addPhotoGrid(allPics,labels);
         }
+      }
+    }
+  }
+
+  // Meter usage charts
+  if(mr.length){
+    addSection('Meter Usage Charts');
+    for(const r of sortedMr){
+      const f=fs.find(x=>x.id===r.featureId);
+      const history=await getMeterHistory(r.featureId);
+      if(history.length<2)continue;
+      // Calculate usage between consecutive readings
+      const usageData=[];
+      for(let i=1;i<history.length;i++){
+        const usage=history[i].value-history[i-1].value;
+        let label=history[i].date||new Date(history[i].timestamp).toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+        if(history[i].rp){
+          const rp=history[i].rp;
+          if(rp.frequency==='monthly'){const mns=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];label=(mns[rp.month]||'')+' '+(rp.year||'').toString().slice(-2)}
+          else if(rp.frequency==='quarterly')label=(rp.quarter||'')+' '+(rp.year||'').toString().slice(-2);
+          else label=label.substring(0,10);
+        }else{label=label.substring(0,10)}
+        usageData.push({label,usage:Math.max(0,usage),x:i-1});
+      }
+      if(usageData.length<1)continue;
+      const chartImg=renderMeterChart(usageData,f?f.featureId:'Meter');
+      if(chartImg){
+        checkPage(75);
+        try{doc.addImage(chartImg,'PNG',mg,y,cw,cw*300/700);y+=cw*300/700+6}catch(e){}
       }
     }
   }
