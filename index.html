@@ -398,6 +398,15 @@ select.fi{background:#fff}
     <div id="personList"></div>
     <button class="btn btn-s" onclick="showM('personModal')" style="margin-top:8px" id="addPersonBtn">+ Add Person</button>
   </div>
+  <!-- EXPORT/IMPORT PROFILES -->
+  <div class="card" style="margin-top:8px">
+    <div class="card-t">Client Profiles</div>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:10px">Export your client setup to transfer to another device, or import a profile file.</p>
+    <button class="btn btn-p" onclick="exportProfiles()" style="font-size:13px">📤 Export All Profiles</button>
+    <button class="btn btn-s" onclick="document.getElementById('importFile').click()" style="font-size:13px">📥 Import Profiles</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importProfiles(event)">
+    <div id="importStatus" style="margin-top:8px;font-size:12px;color:var(--dim)"></div>
+  </div>
   <div class="card" style="margin-top:8px">
     <div class="card-t">Data Management</div>
     <button class="btn btn-d" onclick="clearAll()" style="font-size:13px">Clear All Data</button>
@@ -1015,6 +1024,87 @@ const gp=await getGrpPhotos(sid,r.featureId);gp.forEach((p,i)=>{const b=p.split(
 const grps=(await A('groups')).filter(g=>g.sessionId===sid);for(const g of grps){if(g.photos&&g.photos.length){const folder=zip.folder('groups/'+g.name.replace(/[^a-zA-Z0-9_-]/g,'_'));g.photos.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('photo_'+(i+1)+'.jpg',b,{base64:true})})}}
 const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='photos_'+s.clientName+'_'+s.date+'.zip';a.click();toast('ZIP downloaded')}
 function dlF(c,n,t){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click()}
+
+// === PROFILES EXPORT/IMPORT ===
+async function exportProfiles(){
+  const clients=await A('clients');
+  const locations=await A('locations');
+  const features=await A('features');
+  const settings=await getSettings();
+  const data={
+    exportDate:new Date().toISOString(),
+    appVersion:'ACSField4',
+    clients,locations,features,
+    settings:{roles:settings.roles,personnel:settings.personnel}
+  };
+  const json=JSON.stringify(data,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='ACS_Profiles_'+new Date().toISOString().split('T')[0]+'.json';
+  a.click();
+  toast('Profiles exported');
+}
+
+async function importProfiles(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const status=document.getElementById('importStatus');
+  status.textContent='Reading file...';
+  try{
+    const text=await file.text();
+    const data=JSON.parse(text);
+    if(!data.clients||!data.locations||!data.features){
+      status.innerHTML='<span style="color:var(--red)">Invalid profile file.</span>';return;
+    }
+    // Build existing ID sets to skip duplicates
+    const existCli=new Set((await A('clients')).map(c=>c.id));
+    const existLoc=new Set((await A('locations')).map(l=>l.id));
+    const existFeat=new Set((await A('features')).map(f=>f.id));
+    let cAdded=0,lAdded=0,fAdded=0,cSkipped=0;
+    // Check for name-based duplicates too
+    const existCliNames=new Set((await A('clients')).map(c=>c.name.toLowerCase()));
+
+    for(const c of data.clients){
+      if(existCli.has(c.id)){cSkipped++;continue}
+      if(existCliNames.has(c.name.toLowerCase())){cSkipped++;continue}
+      await P('clients',c);cAdded++;
+    }
+    for(const l of data.locations){
+      if(existLoc.has(l.id))continue;
+      await P('locations',l);lAdded++;
+    }
+    for(const f of data.features){
+      if(existFeat.has(f.id))continue;
+      await P('features',f);fAdded++;
+    }
+    // Merge settings (roles + personnel)
+    if(data.settings){
+      const s=await getSettings();
+      if(data.settings.roles){
+        for(const r of data.settings.roles){
+          if(!s.roles.includes(r)&&s.roles.length<10)s.roles.push(r);
+        }
+      }
+      if(data.settings.personnel){
+        const existIds=new Set(s.personnel.map(p=>p.id));
+        const existNames=new Set(s.personnel.map(p=>(p.firstName+' '+p.lastName).toLowerCase()));
+        for(const p of data.settings.personnel){
+          if(existIds.has(p.id))continue;
+          if(existNames.has((p.firstName+' '+p.lastName).toLowerCase()))continue;
+          if(s.personnel.length<25)s.personnel.push(p);
+        }
+      }
+      await P('settings',s);
+    }
+    status.innerHTML='<span style="color:var(--ok)">Imported: '+cAdded+' clients, '+lAdded+' locations, '+fAdded+' features'+(cSkipped?' ('+cSkipped+' duplicates skipped)':'')+'</span>';
+    renderClis();renderSettings();
+    toast('Import complete');
+  }catch(e){
+    status.innerHTML='<span style="color:var(--red)">Error: '+e.message+'</span>';
+  }
+  event.target.value='';
+}
 
 // === CLEAR ALL ===
 async function clearAll(){if(!confirm('Delete ALL data?'))return;if(!confirm('Absolutely sure?'))return;await CLR('clients');await CLR('locations');await CLR('features');await CLR('sessions');await CLR('readings');await CLR('groups');cSes=null;localStorage.removeItem('lastSes4');updSesUI();nav('clients');toast('All data cleared')}
