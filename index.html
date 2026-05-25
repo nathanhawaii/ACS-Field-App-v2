@@ -115,6 +115,15 @@ select.fi{background:#fff}
 /* SESSION INFO */
 .ses-info{font-size:13px;color:var(--dim);line-height:1.8}
 .ses-info strong{color:var(--txt)}
+/* GROUPS */
+.grp-badge{background:#e3f2fd;color:var(--blue);padding:3px 8px;border-radius:16px;font-size:10px;font-weight:700}
+.grp-members{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.grp-members .chip{font-size:11px;padding:4px 10px}
+.feat-sel-item{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--bdr);border-radius:8px;margin-bottom:6px;cursor:pointer}
+.feat-sel-item.checked{border-color:var(--g);background:#f0f7ef}
+.feat-sel-item input[type=checkbox]{width:20px;height:20px;accent-color:var(--g);flex-shrink:0}
+.feat-sel-item label{font-size:14px;font-weight:600;cursor:pointer;flex:1}
+.feat-sel-item .feat-sel-type{font-size:11px;color:var(--dim);font-weight:500}
 </style>
 </head>
 <body>
@@ -212,6 +221,12 @@ select.fi{background:#fff}
       </div>
       <div class="card-t">Meters</div><div id="sesMtrList"></div>
       <div class="card-t" style="margin-top:14px">Wells</div><div id="sesWellList"></div>
+      <!-- Groups -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;margin-bottom:10px">
+        <div class="card-t" style="margin-bottom:0">Groups</div>
+        <button class="btn btn-p btn-sm" onclick="openCreateGroup()">+ Create Group</button>
+      </div>
+      <div id="sesGroupList"></div>
     </div>
     <!-- Generic service view -->
     <div id="sesGeneric" style="display:none">
@@ -326,6 +341,28 @@ select.fi{background:#fff}
   </div>
   <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="wellNotes" placeholder="Observations, issues..."></textarea></div>
   <button class="btn btn-p" onclick="saveWell()">Save Well Reading</button>
+</div>
+
+<!-- GROUP DETAIL -->
+<div class="vw" id="v-group">
+  <div class="dhdr"><button class="back" onclick="nav('session')">‹</button><div class="dtitle" id="grpTitle">Group</div></div>
+  <div class="card">
+    <div class="card-t">Members</div>
+    <div id="grpMemberList" class="grp-members"></div>
+  </div>
+  <div class="card">
+    <div class="card-t">📸 Group Photos</div>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:10px">These photos will be included with every member feature on export.</p>
+    <div class="cam-btn-big" onclick="capturePhoto('group')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Take Photo
+    </div>
+    <div class="pgrid" id="grpPhotos"></div>
+    <div id="grpPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
+  </div>
+  <div class="fg"><label class="fl">Group Notes</label><textarea class="fi" id="grpNotes" placeholder="Notes about this group..."></textarea></div>
+  <button class="btn btn-p" onclick="saveGroup()">Save Group</button>
+  <button class="btn btn-d" onclick="deleteGroup()" style="margin-top:8px;font-size:13px">Delete Group</button>
 </div>
 
 <!-- EXPORT -->
@@ -483,6 +520,18 @@ select.fi{background:#fff}
   <button class="btn btn-s" onclick="closeM('personModal')">Cancel</button>
 </div></div>
 
+<!-- CREATE GROUP MODAL -->
+<div class="modal-bg" id="grpModal"><div class="modal">
+  <h2>Create Group</h2>
+  <div class="fg"><label class="fl">Group Name</label><input type="text" class="fi" id="grpNameIn" placeholder="e.g. North Cluster, Pump Station Area"></div>
+  <div class="fg">
+    <label class="fl">Select Features</label>
+    <div id="grpFeatSelect"></div>
+  </div>
+  <button class="btn btn-p" onclick="confirmCreateGroup()">Create Group</button>
+  <button class="btn btn-s" onclick="closeM('grpModal')">Cancel</button>
+</div></div>
+
 <!-- TAB BAR -->
 <div class="tbar">
   <button class="active" onclick="nav('clients')" data-tab="clients">
@@ -506,8 +555,8 @@ select.fi{background:#fff}
 <input type="file" id="camIn" accept="image/*" capture="environment" style="display:none">
 <script>
 // === DB ===
-let db;const DB='ACSField4',VER=1;
-function odb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,VER);r.onupgradeneeded=e=>{const d=e.target.result;['clients','locations','features','sessions','readings','settings'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id'})})};r.onsuccess=e=>{db=e.target.result;res(db)};r.onerror=e=>rej(e.target.error)})}
+let db;const DB='ACSField4',VER=2;
+function odb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,VER);r.onupgradeneeded=e=>{const d=e.target.result;['clients','locations','features','sessions','readings','settings','groups'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id'})})};r.onsuccess=e=>{db=e.target.result;res(db)};r.onerror=e=>rej(e.target.error)})}
 function P(s,d){return new Promise((r,j)=>{const t=db.transaction(s,'readwrite');t.objectStore(s).put(d);t.oncomplete=()=>r();t.onerror=e=>j(e.target.error)})}
 function G(s,k){return new Promise((r,j)=>{const t=db.transaction(s,'readonly');const q=t.objectStore(s).get(k);q.onsuccess=()=>r(q.result);q.onerror=e=>j(e.target.error)})}
 function A(s){return new Promise((r,j)=>{const t=db.transaction(s,'readonly');const q=t.objectStore(s).getAll();q.onsuccess=()=>r(q.result);q.onerror=e=>j(e.target.error)})}
@@ -516,9 +565,10 @@ function CLR(s){return new Promise((r,j)=>{const t=db.transaction(s,'readwrite')
 
 // === STATE ===
 let cCli=null,cLoc=null,cSes=null,cFeat=null,eFeat=null,eCli=null,eLoc=null;
-let mPh=[],wPh=[],genPh=[],regP=null,capTgt=null;
+let mPh=[],wPh=[],genPh=[],grpPh=[],regP=null,capTgt=null;
 let sMap=null,sMkr=null,vMap=null;
 let sesPersonnel=[];
+let curGroupId=null;
 const uid=()=>'_'+Date.now()+'_'+Math.random().toString(36).substr(2,6);
 
 async function getSettings(){let s=await G('settings','config');if(!s){s={id:'config',roles:['Inspector','QC/Reviewer'],personnel:[]};await P('settings',s)}return s}
@@ -537,7 +587,7 @@ async function init(){
 function nav(v){
   document.querySelectorAll('.vw').forEach(x=>x.classList.remove('active'));
   document.getElementById('v-'+v).classList.add('active');
-  if(!['client','location','feature-setup','meter','well'].includes(v)){
+  if(!['client','location','feature-setup','meter','well','group'].includes(v)){
     document.querySelectorAll('.tbar button').forEach(b=>b.classList.remove('active'));
     const t=document.querySelector('[data-tab="'+v+'"]');if(t)t.classList.add('active');
   }
@@ -574,7 +624,7 @@ async function renderClis(){const cls=await A('clients');const el=document.getEl
 function openAddClient(){eCli=null;document.getElementById('cliMT').textContent='Add Client';['cliN','cliC','cliP','cliE'].forEach(x=>document.getElementById(x).value='');showM('cliModal')}
 async function editClient(){const c=await G('clients',cCli);eCli=cCli;document.getElementById('cliMT').textContent='Edit Client';document.getElementById('cliN').value=c.name;document.getElementById('cliC').value=c.contact||'';document.getElementById('cliP').value=c.phone||'';document.getElementById('cliE').value=c.email||'';showM('cliModal')}
 async function saveCli(){const n=document.getElementById('cliN').value.trim();if(!n){toast('Enter name');return}await P('clients',{id:eCli||uid(),name:n,contact:document.getElementById('cliC').value.trim(),phone:document.getElementById('cliP').value.trim(),email:document.getElementById('cliE').value.trim()});closeM('cliModal');renderClis();if(eCli)renderCli();toast('Saved')}
-async function deleteClient(){if(!confirm('Delete client and ALL data?'))return;const locs=(await A('locations')).filter(l=>l.clientId===cCli);for(const l of locs){const fs=(await A('features')).filter(f=>f.locationId===l.id);for(const f of fs)await D('features',f.id);const ss=(await A('sessions')).filter(s=>s.locationId===l.id);for(const s of ss){const rs=(await A('readings')).filter(r=>r.sessionId===s.id);for(const r of rs)await D('readings',r.id);await D('sessions',s.id)}await D('locations',l.id)}await D('clients',cCli);if(cSes&&cSes.clientId===cCli){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}nav('clients');toast('Deleted')}
+async function deleteClient(){if(!confirm('Delete client and ALL data?'))return;const locs=(await A('locations')).filter(l=>l.clientId===cCli);for(const l of locs){const fs=(await A('features')).filter(f=>f.locationId===l.id);for(const f of fs)await D('features',f.id);const ss=(await A('sessions')).filter(s=>s.locationId===l.id);for(const s of ss){const rs=(await A('readings')).filter(r=>r.sessionId===s.id);for(const r of rs)await D('readings',r.id);const gs=(await A('groups')).filter(g=>g.sessionId===s.id);for(const g of gs)await D('groups',g.id);await D('sessions',s.id)}await D('locations',l.id)}await D('clients',cCli);if(cSes&&cSes.clientId===cCli){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}nav('clients');toast('Deleted')}
 function openCli(id){cCli=id;nav('client')}
 async function renderCli(){const c=await G('clients',cCli);if(!c)return;document.getElementById('clientName').textContent=c.name;let h='<div style="font-size:13px;color:var(--dim)">';if(c.contact)h+='Contact: <strong>'+c.contact+'</strong><br>';if(c.phone)h+='Phone: '+c.phone+'<br>';if(c.email)h+='Email: '+c.email+'<br>';if(!c.contact&&!c.phone&&!c.email)h+='No contact info';h+='</div>';document.getElementById('clientInfo').innerHTML=h;const locs=(await A('locations')).filter(l=>l.clientId===cCli);const el=document.getElementById('locList');const emp=document.getElementById('locEmpty');if(!locs.length){el.innerHTML='';emp.style.display='block';return}emp.style.display='none';const fs=await A('features');el.innerHTML=locs.map(l=>{const n=fs.filter(f=>f.locationId===l.id).length;return '<div class="li" onclick="openLoc(\''+l.id+'\')"><div><div class="li-id">'+l.name+'</div><div class="li-sub">'+(l.address||'')+' • '+n+' features</div></div><span class="chevron">›</span></div>'}).join('')}
 
@@ -584,7 +634,7 @@ async function editLocation(){const l=await G('locations',cLoc);eLoc=cLoc;docume
 async function saveLoc(){const n=document.getElementById('locNI').value.trim();if(!n){toast('Enter name');return}await P('locations',{id:eLoc||uid(),clientId:cCli,name:n,address:document.getElementById('locAI').value.trim()});closeM('locModal');renderCli();toast('Saved')}
 function openLoc(id){cLoc=id;nav('location')}
 async function renderLoc(){const l=await G('locations',cLoc);if(!l)return;document.getElementById('locName').textContent=l.name;document.getElementById('locInfo').innerHTML='<div style="font-size:13px;color:var(--dim)">'+(l.address||'No address')+'</div>';const fs=(await A('features')).filter(f=>f.locationId===cLoc);const el=document.getElementById('featureList');const emp=document.getElementById('featureEmpty');if(!fs.length){el.innerHTML='';emp.style.display='block';return}emp.style.display='none';const ms=fs.filter(f=>f.type==='meter').sort((a,b)=>a.featureId.localeCompare(b.featureId)),ws=fs.filter(f=>f.type==='well').sort((a,b)=>a.featureId.localeCompare(b.featureId));let h='';if(ms.length){h+='<div class="card-t">Meters ('+ms.length+')</div>';h+=ms.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}if(ws.length){h+='<div class="card-t" style="margin-top:10px">Wells ('+ws.length+')</div>';h+=ws.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}el.innerHTML=h}
-async function deleteLocation(){if(!confirm('Delete location and all data?'))return;const fs=(await A('features')).filter(f=>f.locationId===cLoc);for(const f of fs)await D('features',f.id);const ss=(await A('sessions')).filter(s=>s.locationId===cLoc);for(const s of ss){const rs=(await A('readings')).filter(r=>r.sessionId===s.id);for(const r of rs)await D('readings',r.id);await D('sessions',s.id)}await D('locations',cLoc);if(cSes&&cSes.locationId===cLoc){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}nav('client');toast('Deleted')}
+async function deleteLocation(){if(!confirm('Delete location and all data?'))return;const fs=(await A('features')).filter(f=>f.locationId===cLoc);for(const f of fs)await D('features',f.id);const ss=(await A('sessions')).filter(s=>s.locationId===cLoc);for(const s of ss){const rs=(await A('readings')).filter(r=>r.sessionId===s.id);for(const r of rs)await D('readings',r.id);const gs=(await A('groups')).filter(g=>g.sessionId===s.id);for(const g of gs)await D('groups',g.id);await D('sessions',s.id)}await D('locations',cLoc);if(cSes&&cSes.locationId===cLoc){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}nav('client');toast('Deleted')}
 
 // === FEATURES ===
 function openAddFeature(){eFeat=null;document.getElementById('fsTitle').textContent='Add Feature';document.getElementById('fIdIn').value='';document.getElementById('fLat').value='';document.getElementById('fLng').value='';document.getElementById('fDelBtn').style.display='none';document.querySelectorAll('#fType .ropt').forEach(r=>r.classList.remove('sel'));document.querySelector('#fType [data-value="meter"]').classList.add('sel');document.getElementById('fsBack').onclick=()=>nav('location');nav('feature-setup');setTimeout(()=>initSMap(),100)}
@@ -649,7 +699,7 @@ async function createSes(){
   await P('sessions',s);cSes=s;cCli=ci;cLoc=li;
   localStorage.setItem('lastSes4',s.id);updSesUI();closeM('sesModal');nav('session');toast('Session started')}
 async function loadSes(id){const s=await G('sessions',id);if(!s)return;cSes=s;cCli=s.clientId;cLoc=s.locationId;localStorage.setItem('lastSes4',s.id);updSesUI();closeM('sesModal');nav('session');toast('Loaded')}
-async function delSes(id){if(!confirm('Delete session?'))return;const rs=(await A('readings')).filter(r=>r.sessionId===id);for(const r of rs)await D('readings',r.id);await D('sessions',id);if(cSes&&cSes.id===id){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}renderSesList();toast('Deleted')}
+async function delSes(id){if(!confirm('Delete session?'))return;const rs=(await A('readings')).filter(r=>r.sessionId===id);for(const r of rs)await D('readings',r.id);const gs=(await A('groups')).filter(g=>g.sessionId===id);for(const g of gs)await D('groups',g.id);await D('sessions',id);if(cSes&&cSes.id===id){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}renderSesList();toast('Deleted')}
 async function renderSesList(){const ss=(await A('sessions')).sort((a,b)=>b.createdAt-a.createdAt);const el=document.getElementById('sesList');if(!ss.length){el.innerHTML='<div class="empty"><p>No sessions.</p></div>';return}el.innerHTML=ss.map(s=>'<div class="li"><div onclick="loadSes(\''+s.id+'\')" style="flex:1"><div class="li-id">'+s.clientName+' — '+s.locationName+'</div><div class="li-sub">'+fD(s.date)+' • '+(s.serviceType||'')+' <span class="badge '+(s.status==='completed'?'b-complete':'b-active')+'">'+(s.status||'active')+'</span></div></div><button style="background:#fde8e8;border:none;color:var(--red);width:30px;height:30px;border-radius:8px;font-size:14px;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();delSes(\''+s.id+'\')">✕</button></div>').join('')}
 function updSesUI(){const bar=document.getElementById('sbar'),sub=document.getElementById('hdrSub');if(cSes){bar.style.display='flex';document.getElementById('sbarClient').textContent=cSes.clientName;document.getElementById('sbarLoc').textContent=cSes.locationName;document.getElementById('sbarDate').textContent=fD(cSes.date);sub.textContent=cSes.clientName+' — '+cSes.locationName;document.getElementById('noSes').style.display='none';document.getElementById('sesActive').style.display='block'}else{bar.style.display='none';sub.textContent='Setup your clients to begin';document.getElementById('noSes').style.display='block';document.getElementById('sesActive').style.display='none'}}
 
@@ -700,6 +750,14 @@ async function renderSes(){
     document.getElementById('sWD').textContent=ws.filter(w=>done.has(w.id)).length+'/'+ws.length;
     document.getElementById('sesMtrList').innerHTML=ms.map(m=>{const d=done.has(m.id);const r=sr.find(x=>x.featureId===m.id);return '<div class="li" onclick="openMtr(\''+m.id+'\')"><div><div class="li-id">'+m.featureId+'</div><div class="li-sub">'+(d?'Register: '+r.registerValue+' • '+r.photos.length+' photos':'Tap to record')+'</div></div><span class="badge '+(d?'b-done':'b-pend')+'">'+(d?'Done':'Pending')+'</span></div>'}).join('')||'<div class="empty"><p>No meters</p></div>';
     document.getElementById('sesWellList').innerHTML=ws.map(w=>{const d=done.has(w.id);const r=sr.find(x=>x.featureId===w.id);return '<div class="li" onclick="openWell2(\''+w.id+'\')"><div><div class="li-id">'+w.featureId+'</div><div class="li-sub">'+(d?'Depth: '+r.waterDepth+'ft • '+r.pumpStatus:'Tap to record')+'</div></div><span class="badge '+(d?'b-done':'b-pend')+'">'+(d?'Done':'Pending')+'</span></div>'}).join('')||'<div class="empty"><p>No wells</p></div>';
+    // Groups
+    const grps=(await A('groups')).filter(g=>g.sessionId===cSes.id);
+    const grpEl=document.getElementById('sesGroupList');
+    if(!grps.length){grpEl.innerHTML='<div class="empty" style="padding:12px"><p>No groups yet. Create a group to take shared photos across features.</p></div>'}
+    else{grpEl.innerHTML=grps.map(g=>{
+      const memberNames=g.featureIds.map(fid=>{const feat=fs.find(x=>x.id===fid);return feat?feat.featureId:'?'}).join(', ');
+      return '<div class="li" onclick="openGroup(\''+g.id+'\')"><div><div class="li-id">'+g.name+'</div><div class="li-sub">'+g.featureIds.length+' features • '+(g.photos?g.photos.length:0)+' photos</div><div class="li-sub" style="font-size:11px;margin-top:2px">'+memberNames+'</div></div><span class="chevron">›</span></div>'
+    }).join('')}
   }else{
     // Load generic reading
     const rs=await A('readings');const gr=rs.find(r=>r.sessionId===cSes.id&&r.type==='generic');
@@ -738,7 +796,66 @@ await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:
 
 // === CAMERA ===
 function capturePhoto(tgt){capTgt=tgt;document.getElementById('camIn').value='';document.getElementById('camIn').click()}
-document.getElementById('camIn').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){const img=new Image();img.onload=function(){const c=document.createElement('canvas');const M=1600;let w=img.width,h=img.height;if(w>M||h>M){if(w>h){h=h*M/w;w=M}else{w=w*M/h;h=M}}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);if(capTgt==='meter'){mPh.push(d);renderMP()}else if(capTgt==='well'){wPh.push(d);renderWP()}else if(capTgt==='register'){mPh.push(d);regP=d;renderMP();document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;setTimeout(()=>document.getElementById('mtrReg').focus(),300)}else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}};img.src=ev.target.result};r.readAsDataURL(f)});
+document.getElementById('camIn').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){const img=new Image();img.onload=function(){const c=document.createElement('canvas');const M=1600;let w=img.width,h=img.height;if(w>M||h>M){if(w>h){h=h*M/w;w=M}else{w=w*M/h;h=M}}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);if(capTgt==='meter'){mPh.push(d);renderMP()}else if(capTgt==='well'){wPh.push(d);renderWP()}else if(capTgt==='register'){mPh.push(d);regP=d;renderMP();document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;setTimeout(()=>document.getElementById('mtrReg').focus(),300)}else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos()}};img.src=ev.target.result};r.readAsDataURL(f)});
+
+// === GROUPS ===
+async function openCreateGroup(){
+  if(!cSes)return;
+  document.getElementById('grpNameIn').value='';
+  const fs=(await A('features')).filter(f=>f.locationId===cSes.locationId);
+  const el=document.getElementById('grpFeatSelect');
+  el.innerHTML=fs.sort((a,b)=>a.type.localeCompare(b.type)||a.featureId.localeCompare(b.featureId)).map(f=>
+    '<div class="feat-sel-item" onclick="this.classList.toggle(\'checked\');this.querySelector(\'input\').checked=this.classList.contains(\'checked\')"><input type="checkbox" value="'+f.id+'" id="gfs_'+f.id+'"><label for="gfs_'+f.id+'">'+f.featureId+'</label><span class="feat-sel-type">'+f.type+'</span></div>'
+  ).join('');
+  showM('grpModal');
+}
+async function confirmCreateGroup(){
+  const name=document.getElementById('grpNameIn').value.trim();
+  if(!name){toast('Enter group name');return}
+  const checked=[...document.querySelectorAll('#grpFeatSelect input:checked')].map(cb=>cb.value);
+  if(checked.length<2){toast('Select at least 2 features');return}
+  const grp={id:uid(),sessionId:cSes.id,name:name,featureIds:checked,photos:[],notes:'',createdAt:Date.now()};
+  await P('groups',grp);
+  closeM('grpModal');renderSes();toast('Group created');
+}
+async function openGroup(id){
+  curGroupId=id;
+  const g=await G('groups',id);
+  if(!g)return;
+  grpPh=g.photos||[];
+  document.getElementById('grpTitle').textContent=g.name;
+  document.getElementById('grpNotes').value=g.notes||'';
+  // Render members
+  const fs=await A('features');
+  const el=document.getElementById('grpMemberList');
+  el.innerHTML=g.featureIds.map(fid=>{const f=fs.find(x=>x.id===fid);return '<span class="chip">'+(f?f.featureId+' <span style="opacity:.6">('+f.type+')</span>':'?')+'</span>'}).join('');
+  renderGrpPhotos();
+  nav('group');
+}
+function renderGrpPhotos(){
+  const el=document.getElementById('grpPhotos');
+  el.innerHTML=grpPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="grpPh.splice('+i+',1);renderGrpPhotos()">✕</button></div>').join('');
+  document.getElementById('grpPC').textContent=grpPh.length?grpPh.length+' group photo'+(grpPh.length>1?'s':''):'';
+}
+async function saveGroup(){
+  const g=await G('groups',curGroupId);
+  g.photos=grpPh;
+  g.notes=document.getElementById('grpNotes').value;
+  await P('groups',g);
+  toast('Group saved');nav('session');
+}
+async function deleteGroup(){
+  if(!confirm('Delete this group? Feature data is not affected.'))return;
+  await D('groups',curGroupId);
+  toast('Group deleted');nav('session');
+}
+// Helper: get group photos that apply to a feature in a session
+async function getGrpPhotos(sessionId,featureId){
+  const grps=(await A('groups')).filter(g=>g.sessionId===sessionId&&g.featureIds.includes(featureId));
+  let photos=[];
+  for(const g of grps){photos=photos.concat(g.photos||[])}
+  return photos;
+}
 
 // === EXPORT ===
 async function refExp(){const ss=(await A('sessions')).sort((a,b)=>b.createdAt-a.createdAt);document.getElementById('expSel').innerHTML='<option value="">-- Choose --</option>'+ss.map(s=>'<option value="'+s.id+'">'+s.clientName+' — '+s.locationName+' — '+fD(s.date)+' ('+s.serviceType+')</option>').join('');document.getElementById('expOpts').style.display='none'}
@@ -801,14 +918,17 @@ async function expPDF(mode){
     if(mode==='full'){
       for(const r of mr){
         const f=fs.find(x=>x.id===r.featureId);
-        if(r.photos.length||r.registerPhoto){
+        const gp=await getGrpPhotos(sid,r.featureId);
+        if(r.photos.length||r.registerPhoto||gp.length){
           checkPage(60);
           doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text('Meter: '+(f?f.featureId:''),mg,y);y+=6;
-          const allPics=[...(r.registerPhoto?[r.registerPhoto]:[]),...r.photos.filter(p=>p!==r.registerPhoto)];
+          const allPics=[...(r.registerPhoto?[r.registerPhoto]:[]),...r.photos.filter(p=>p!==r.registerPhoto),...gp];
+          const regCount=r.registerPhoto?1:0;const ownCount=r.photos.filter(p=>p!==r.registerPhoto).length;
           for(let i=0;i<allPics.length;i++){
             checkPage(55);
             try{doc.addImage(allPics[i],'JPEG',mg,y,50,37.5);
             if(i===0&&r.registerPhoto)doc.text('Register Photo',mg+52,y+6);
+            else if(i>=regCount+ownCount)doc.text('Group Photo',mg+52,y+6);
             y+=40}catch(e){}
           }
           y+=4;
@@ -827,12 +947,16 @@ async function expPDF(mode){
     if(mode==='full'){
       for(const r of wr){
         const f=fs.find(x=>x.id===r.featureId);
-        if(r.photos.length){
+        const gp=await getGrpPhotos(sid,r.featureId);
+        if(r.photos.length||gp.length){
           checkPage(60);
           doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text('Well: '+(f?f.featureId:''),mg,y);y+=6;
-          for(let i=0;i<r.photos.length;i++){
+          const allPics=[...r.photos,...gp];
+          for(let i=0;i<allPics.length;i++){
             checkPage(55);
-            try{doc.addImage(r.photos[i],'JPEG',mg,y,50,37.5);y+=40}catch(e){}
+            try{doc.addImage(allPics[i],'JPEG',mg,y,50,37.5);
+            if(i>=r.photos.length)doc.text('Group Photo',mg+52,y+6);
+            y+=40}catch(e){}
           }
           y+=4;
         }
@@ -878,16 +1002,22 @@ async function expPackage(){
     const folder=photoFolder.folder(fn);
     if(r.photos)r.photos.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('photo_'+(i+1)+'.jpg',b,{base64:true})});
     if(r.registerPhoto){const b=r.registerPhoto.split(',')[1];if(b)folder.file('register_photo.jpg',b,{base64:true})}
+    const gp=await getGrpPhotos(sid,r.featureId);gp.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('group_photo_'+(i+1)+'.jpg',b,{base64:true})});
   }
   const blob=await zip.generateAsync({type:'blob'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ACS_Package_'+s.clientName+'_'+s.date+'.zip';a.click();toast('Package downloaded');
 }
 
-async function expZip(){const sid=gES();if(!sid)return;if(typeof JSZip==='undefined'){toast('Need internet once');return}toast('Building ZIP...');const zip=new JSZip();const s=await G('sessions',sid);const rs=(await A('readings')).filter(r=>r.sessionId===sid);const fs=await A('features');for(const r of rs){const f=fs.find(x=>x.id===r.featureId);const fn=f?(r.type!=='generic'?r.type+'s/'+f.featureId:'service'):'other';const folder=zip.folder(fn);if(r.photos)r.photos.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('photo_'+(i+1)+'.jpg',b,{base64:true})});if(r.registerPhoto){const b=r.registerPhoto.split(',')[1];if(b)folder.file('register_photo.jpg',b,{base64:true})}}const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='photos_'+s.clientName+'_'+s.date+'.zip';a.click();toast('ZIP downloaded')}
+async function expZip(){const sid=gES();if(!sid)return;if(typeof JSZip==='undefined'){toast('Need internet once');return}toast('Building ZIP...');const zip=new JSZip();const s=await G('sessions',sid);const rs=(await A('readings')).filter(r=>r.sessionId===sid);const fs=await A('features');for(const r of rs){const f=fs.find(x=>x.id===r.featureId);const fn=f?(r.type!=='generic'?r.type+'s/'+f.featureId:'service'):'other';const folder=zip.folder(fn);if(r.photos)r.photos.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('photo_'+(i+1)+'.jpg',b,{base64:true})});if(r.registerPhoto){const b=r.registerPhoto.split(',')[1];if(b)folder.file('register_photo.jpg',b,{base64:true})}
+// Append group photos
+const gp=await getGrpPhotos(sid,r.featureId);gp.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('group_photo_'+(i+1)+'.jpg',b,{base64:true})})}
+// Also export group folders
+const grps=(await A('groups')).filter(g=>g.sessionId===sid);for(const g of grps){if(g.photos&&g.photos.length){const folder=zip.folder('groups/'+g.name.replace(/[^a-zA-Z0-9_-]/g,'_'));g.photos.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('photo_'+(i+1)+'.jpg',b,{base64:true})})}}
+const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='photos_'+s.clientName+'_'+s.date+'.zip';a.click();toast('ZIP downloaded')}
 function dlF(c,n,t){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click()}
 
 // === CLEAR ALL ===
-async function clearAll(){if(!confirm('Delete ALL data?'))return;if(!confirm('Absolutely sure?'))return;await CLR('clients');await CLR('locations');await CLR('features');await CLR('sessions');await CLR('readings');cSes=null;localStorage.removeItem('lastSes4');updSesUI();nav('clients');toast('All data cleared')}
+async function clearAll(){if(!confirm('Delete ALL data?'))return;if(!confirm('Absolutely sure?'))return;await CLR('clients');await CLR('locations');await CLR('features');await CLR('sessions');await CLR('readings');await CLR('groups');cSes=null;localStorage.removeItem('lastSes4');updSesUI();nav('clients');toast('All data cleared')}
 
 init();
 </script>
