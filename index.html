@@ -316,8 +316,21 @@ select.fi{background:#fff}
         <div class="pgrid" id="genPhotos"></div>
       </div>
     </div>
+    <!-- Follow-ups -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-t">Follow-ups</div>
+      <div id="followUpList"></div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <input type="text" class="fi fi-sm" id="newFollowUp" placeholder="Follow-up item..." style="flex:1">
+        <button class="btn btn-p btn-sm" onclick="addFollowUp()">+</button>
+      </div>
+    </div>
+    <!-- Send Report -->
+    <div style="margin-top:14px">
+      <button class="btn btn-p" onclick="openSendReport()" style="font-size:13px">📧 Send Report to Client</button>
+    </div>
     <!-- Complete session button -->
-    <div id="sesCompleteArea" style="margin-top:16px">
+    <div id="sesCompleteArea" style="margin-top:8px">
       <button class="btn btn-complete" onclick="startCompleteSession()">✓ Complete Session</button>
     </div>
     <div id="sesCompletedMsg" style="display:none;text-align:center;padding:12px;background:#e8f5e9;border-radius:var(--r);margin-top:12px">
@@ -490,6 +503,7 @@ select.fi{background:#fff}
     <div class="card" style="text-align:center"><h3 style="font-size:15px;margin-bottom:6px">📄 PDF — Full Report with Photos</h3><p style="font-size:12px;color:var(--dim);margin-bottom:10px">Complete report with all photos organized by feature</p><button class="btn btn-p btn-sm" onclick="expPDF('full')">Download PDF</button></div>
     <div class="card" style="text-align:center"><h3 style="font-size:15px;margin-bottom:6px">📦 Complete Package (PDF + Photos ZIP)</h3><p style="font-size:12px;color:var(--dim);margin-bottom:10px">Summary report + organized photo folders in one download</p><button class="btn btn-s btn-sm" onclick="expPackage()">Download Package</button></div>
     <div class="card" style="text-align:center"><h3 style="font-size:15px;margin-bottom:6px">📸 Photos ZIP Only</h3><p style="font-size:12px;color:var(--dim);margin-bottom:10px">Organized by feature ID</p><button class="btn btn-s btn-sm" onclick="expZip()">Download ZIP</button></div>
+    <div class="card" style="text-align:center"><h3 style="font-size:15px;margin-bottom:6px">🗺️ Full Route Map (Internal)</h3><p style="font-size:12px;color:var(--dim);margin-bottom:10px">Complete GPS track including travel to/from site</p><button class="btn btn-s btn-sm" onclick="expFullRoute()">Download PNG</button></div>
   </div>
 </div>
 
@@ -510,6 +524,12 @@ select.fi{background:#fff}
     <div class="card-t">Personnel (<span id="pCount">0</span>/25)</div>
     <div id="personList"></div>
     <button class="btn btn-s" onclick="showM('personModal')" style="margin-top:8px" id="addPersonBtn">+ Add Person</button>
+  </div>
+  <!-- EMAIL SETTINGS -->
+  <div class="card" style="margin-top:8px">
+    <div class="card-t">Email Settings</div>
+    <div class="fg"><label class="fl">Your Email (From)</label><input type="email" class="fi fi-sm" id="setFromEmail" placeholder="nate@agriworksco.com" oninput="draftDebounce(saveEmailSettings)"></div>
+    <div class="fg"><label class="fl">Email Signature Name</label><input type="text" class="fi fi-sm" id="setSignName" placeholder="Nathaniel Griffin" oninput="draftDebounce(saveEmailSettings)"></div>
   </div>
   <!-- EXPORT/IMPORT PROFILES -->
   <div class="card" style="margin-top:8px">
@@ -601,6 +621,23 @@ select.fi{background:#fff}
     <div class="fg"><label class="fl">Closing Notes / Comments</label><textarea class="fi" id="endNotes" placeholder="Final observations, follow-up items..." style="min-height:100px"></textarea></div>
     <button class="btn btn-p" onclick="confirmComplete()">✓ Confirm Complete</button>
     <button class="btn btn-s" onclick="closeM('completeModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- SEND REPORT MODAL -->
+<div class="modal-bg" id="sendReportModal">
+  <div class="modal">
+    <h2>Send Report to Client</h2>
+    <div class="fg"><label class="fl">To (Client Email)</label><input type="email" class="fi fi-sm" id="srTo"></div>
+    <div class="fg"><label class="fl">Subject</label><input type="text" class="fi fi-sm" id="srSubject"></div>
+    <div class="fg"><label class="fl">Email Body</label><textarea class="fi" id="srBody" style="min-height:200px;font-size:13px"></textarea></div>
+    <div id="srFollowUps" style="margin-bottom:10px"></div>
+    <div class="btn-row">
+      <button class="btn btn-p" onclick="openEmailApp()" style="font-size:13px">📧 Open Email App</button>
+      <button class="btn btn-s" onclick="copyEmailBody()" style="font-size:13px">📋 Copy Body</button>
+    </div>
+    <button class="btn btn-s" onclick="generateAndSharePDF()" style="margin-top:6px;font-size:13px">📄 Download PDF to Attach</button>
+    <button class="btn btn-s" onclick="closeM('sendReportModal')" style="margin-top:6px;font-size:13px">Close</button>
   </div>
 </div>
 
@@ -744,6 +781,9 @@ async function renderSettings(){
   if(s.personnel.length>=25)document.getElementById('addPersonBtn').style.display='none';
   else document.getElementById('addPersonBtn').style.display='block';
   pl.innerHTML=s.personnel.map(p=>'<div class="person-item"><div><div class="pi-name">'+p.firstName+' '+p.lastName+'</div><div class="pi-detail">'+(p.email||'')+(p.phone?' • '+p.phone:'')+'</div></div><button onclick="removePerson(\''+p.id+'\')">✕</button></div>').join('')||'<div class="empty"><p>No personnel added.</p></div>';
+  // Email settings
+  document.getElementById('setFromEmail').value=s.fromEmail||'';
+  document.getElementById('setSignName').value=s.signName||'';
 }
 async function addRole(){const inp=document.getElementById('newRole');const v=inp.value.trim();if(!v)return;const s=await getSettings();if(s.roles.length>=10){toast('Max 10 roles');return}if(s.roles.includes(v)){toast('Role exists');return}s.roles.push(v);await P('settings',s);inp.value='';renderSettings();toast('Role added')}
 async function removeRole(i){const s=await getSettings();s.roles.splice(i,1);await P('settings',s);renderSettings()}
@@ -877,6 +917,7 @@ async function renderSes(){
   info+='</div>';
   document.getElementById('sesInfoBody').innerHTML=info;
   renderNavUI();
+  renderFollowUps();
 
   // Show/hide based on service type
   const isHydro=cSes.serviceType==='hydrogeologic';
@@ -1090,7 +1131,9 @@ function renderNavUI(){
 
 // === SESSION COMPLETE ===
 function startCompleteSession(){showM('completeModal');document.getElementById('endNotes').value=''}
-async function confirmComplete(){stopTracking();cSes.endTime=Date.now();cSes.status='completed';cSes.endNotes=document.getElementById('endNotes').value;cSes.track=trackPoints;await P('sessions',cSes);closeM('completeModal');renderSes();toast('Session completed')}
+async function confirmComplete(){stopTracking();cSes.endTime=Date.now();cSes.status='completed';cSes.endNotes=document.getElementById('endNotes').value;cSes.track=trackPoints;await P('sessions',cSes);closeM('completeModal');renderSes();toast('Session completed');
+// Prompt to send report
+setTimeout(()=>{if(confirm('Session complete. Send report to '+cSes.clientName+' now?')){openSendReport()}else{toast('You can send the report later from the session view')}},500)}
 
 // === METER CHECK ===
 async function openMtr(fid){cFeat=fid;const f=await G('features',fid);mPh=[];regP=null;document.getElementById('mtrT').textContent='Meter: '+f.featureId;document.getElementById('mtrReg').value='';document.getElementById('mtrNotes').value='';document.getElementById('regSelArea').style.display='none';['cb_mObstructed','cb_mVegDestruct','cb_mVegHerb','cb_mExtended','cb_mDecon'].forEach(x=>document.getElementById(x).checked=false);
@@ -1678,16 +1721,17 @@ async function expPDF(mode){
     if(mode==='full'&&gr.photos&&gr.photos.length){addPhotoGrid(gr.photos)}
   }
 
-  // Route Map
-  if(s.track&&s.track.length>5){
+  // Route Map (on-site only for client report)
+  const onsiteTrack=getOnsiteTrack(s);
+  if(onsiteTrack.length>5){
     addSection('Session Route Map');
-    const routeImg=renderRouteMap(s.track,fs.filter(f=>f.locationId===s.locationId));
+    const routeImg=renderRouteMap(onsiteTrack,fs.filter(f=>f.locationId===s.locationId));
     if(routeImg){
       checkPage(120);
       try{doc.addImage(routeImg,'PNG',mg,y,cw,cw*500/700);y+=cw*500/700+6}catch(e){}
     }
     checkPage(10);doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(100);
-    doc.text('GPS track: '+s.track.length+' points recorded during session',mg,y);y+=4;
+    doc.text('On-site GPS track: '+onsiteTrack.length+' points',mg,y);y+=4;
     doc.setTextColor(0);
   }
 
@@ -1704,8 +1748,22 @@ async function expPDF(mode){
     blob=doc.output('blob');
   }
   const sizeMB=(blob.size/1024/1024).toFixed(1);
-  doc.save('Field_Report_'+s.clientName+'_'+s.date+(mode==='full'?'_Full':'')+'.pdf');
+  const rpStr=s.reportingPeriod?'_'+fmtRP(s.reportingPeriod).replace(/[^a-zA-Z0-9]/g,'_'):'';
+  doc.save('ACS_Field_Report_'+s.clientName.replace(/[^a-zA-Z0-9]/g,'_')+rpStr+'_'+s.date+(mode==='full'?'_Full':'')+'.pdf');
   toast('PDF downloaded ('+sizeMB+' MB)');
+}
+let _pdfCustomName=null;
+async function expPDFWithName(mode,fname){
+  _pdfCustomName=fname;
+  const origSel=document.getElementById('expSel').value;
+  document.getElementById('expSel').value=cSes.id;
+  // Ensure the session is in the select
+  const opt=document.createElement('option');opt.value=cSes.id;opt.textContent='temp';opt.selected=true;
+  document.getElementById('expSel').appendChild(opt);
+  await expPDF(mode);
+  _pdfCustomName=null;
+  opt.remove();
+  if(origSel)document.getElementById('expSel').value=origSel;
 }
 
 // === PACKAGE EXPORT ===
@@ -1746,6 +1804,21 @@ const gp=await getGrpPhotos(sid,r.featureId);gp.forEach((p,i)=>{const b=p.split(
 const grps=(await A('groups')).filter(g=>g.sessionId===sid);for(const g of grps){if(g.photos&&g.photos.length){const folder=zip.folder('groups/'+g.name.replace(/[^a-zA-Z0-9_-]/g,'_'));g.photos.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('photo_'+(i+1)+'.jpg',b,{base64:true})})}}
 const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='photos_'+s.clientName+'_'+s.date+'.zip';a.click();toast('ZIP downloaded')}
 function dlF(c,n,t){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click()}
+
+async function expFullRoute(){
+  const sid=gES();if(!sid)return;
+  const s=await G('sessions',sid);
+  const fs=(await A('features')).filter(f=>f.locationId===s.locationId);
+  const fullTrack=getFullTrack(s);
+  if(fullTrack.length<5){toast('Not enough GPS data');return}
+  const img=renderRouteMap(fullTrack,fs);
+  if(!img){toast('Could not render map');return}
+  // Convert data URL to blob and download
+  const res=await fetch(img);const blob=await res.blob();
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='Full_Route_'+s.clientName+'_'+s.date+'.png';a.click();
+  toast('Full route map downloaded');
+}
 
 // === PROFILES EXPORT/IMPORT ===
 async function exportProfiles(){
@@ -1885,6 +1958,144 @@ async function importData(event){
   }
   event.target.value='';
 }
+
+// === FOLLOW-UPS ===
+async function addFollowUp(){
+  const text=document.getElementById('newFollowUp').value.trim();
+  if(!text){toast('Enter follow-up item');return}
+  if(!cSes.followUps)cSes.followUps=[];
+  cSes.followUps.push({id:uid(),text,status:'open',created:Date.now(),updated:null});
+  await P('sessions',cSes);document.getElementById('newFollowUp').value='';renderFollowUps();toast('Follow-up added');
+}
+function renderFollowUps(){
+  if(!cSes)return;
+  const fups=cSes.followUps||[];
+  const el=document.getElementById('followUpList');
+  if(!fups.length){el.innerHTML='<div style="font-size:12px;color:var(--dim)">No follow-ups.</div>';return}
+  el.innerHTML=fups.map(f=>{
+    const colors={open:'var(--amb)',in_progress:'var(--blue)',resolved:'var(--ok)'};
+    const labels={open:'Open',in_progress:'In Progress',resolved:'Resolved'};
+    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--bdr)"><div style="flex:1"><div style="font-size:13px'+(f.status==='resolved'?';text-decoration:line-through;opacity:.6':'')+'">'+f.text+'</div><div style="font-size:11px;color:var(--dim)">'+new Date(f.created).toLocaleDateString()+'</div></div><select style="font-size:11px;padding:4px;border-radius:6px;border:1px solid var(--bdr);color:'+colors[f.status]+';font-weight:700" onchange="updateFollowUp(\''+f.id+'\',this.value)"><option value="open"'+(f.status==='open'?' selected':'')+'>Open</option><option value="in_progress"'+(f.status==='in_progress'?' selected':'')+'>In Progress</option><option value="resolved"'+(f.status==='resolved'?' selected':'')+'>Resolved</option></select></div>'
+  }).join('');
+}
+async function updateFollowUp(id,status){
+  const f=cSes.followUps.find(x=>x.id===id);
+  if(f){f.status=status;f.updated=Date.now();await P('sessions',cSes);renderFollowUps()}
+}
+
+// === EMAIL / SEND REPORT ===
+async function saveEmailSettings(){
+  const s=await getSettings();
+  s.fromEmail=document.getElementById('setFromEmail').value.trim();
+  s.signName=document.getElementById('setSignName').value.trim();
+  await P('settings',s);
+}
+async function loadEmailSettings(){
+  const s=await getSettings();
+  document.getElementById('setFromEmail').value=s.fromEmail||'';
+  document.getElementById('setSignName').value=s.signName||'';
+}
+
+async function openSendReport(){
+  if(!cSes)return;
+  const settings=await getSettings();
+  const client=await G('clients',cSes.clientId);
+  const rs=await A('readings');const fs=await A('features');
+  const sr=rs.filter(r=>r.sessionId===cSes.id);
+
+  // To address
+  document.getElementById('srTo').value=client?client.email||'':'';
+
+  // Reporting period
+  const rp=cSes.reportingPeriod?fmtRP(cSes.reportingPeriod):'';
+  const svcDate=cSes.date?formatDateDDMmmYYYY(cSes.date):'';
+
+  // Subject
+  document.getElementById('srSubject').value=(rp?rp+' ':'')+'MHW Well and Meter Report';
+
+  // Collect observations
+  const bullets=[];
+  if(cSes.startNotes)bullets.push(cSes.startNotes);
+  sr.forEach(r=>{
+    if(r.notes&&r.notes.trim()&&r.type!=='group_photos'&&r.type!=='generic'){
+      const f=fs.find(x=>x.id===r.featureId);
+      bullets.push((f?f.featureId+': ':'')+r.notes.trim());
+    }
+  });
+  const genReading=sr.find(r=>r.type==='generic');
+  if(genReading&&genReading.notes)bullets.push(genReading.notes);
+  if(cSes.endNotes)bullets.push(cSes.endNotes);
+
+  // Follow-ups
+  const openFups=(cSes.followUps||[]).filter(f=>f.status!=='resolved');
+
+  // Build body
+  let body='Aloha,\n\n';
+  body+='The '+(rp?rp+' ':'')+'Well & Meter report, conducted on '+svcDate+', is attached. ';
+  body+='Primary observations for this reporting period are as follows:\n\n';
+  if(bullets.length){bullets.forEach(b=>{body+='• '+b+'\n'});body+='\n'}else{body+='• No significant observations.\n\n'}
+  if(openFups.length){
+    body+='Outstanding follow-up items:\n';
+    openFups.forEach(f=>{body+='• '+f.text+' ('+f.status.replace('_',' ')+')\n'});
+    body+='\n';
+  }
+  body+='Ground Water Use reporting for this period will be prepared and submitted to the Commission on Water Resource Management within 5 business days.\n\n';
+  body+='Best,\n'+(settings.signName||'');
+
+  document.getElementById('srBody').value=body;
+
+  // Follow-ups summary
+  const fupEl=document.getElementById('srFollowUps');
+  if(openFups.length){fupEl.innerHTML='<div style="font-size:12px;color:var(--amb);font-weight:600">'+openFups.length+' open follow-up'+(openFups.length>1?'s':'')+' included in email</div>'}
+  else{fupEl.innerHTML=''}
+
+  showM('sendReportModal');
+}
+
+function formatDateDDMmmYYYY(d){
+  const dt=new Date(d+'T00:00:00');
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return String(dt.getDate()).padStart(2,'0')+months[dt.getMonth()]+dt.getFullYear();
+}
+
+function openEmailApp(){
+  const to=document.getElementById('srTo').value;
+  const subj=encodeURIComponent(document.getElementById('srSubject').value);
+  const body=encodeURIComponent(document.getElementById('srBody').value);
+  window.open('mailto:'+to+'?subject='+subj+'&body='+body,'_blank');
+  toast('Opening email app...');
+}
+
+function copyEmailBody(){
+  const body=document.getElementById('srBody').value;
+  navigator.clipboard.writeText(body).then(()=>toast('Email body copied')).catch(()=>{
+    // Fallback
+    const ta=document.createElement('textarea');ta.value=body;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied');
+  });
+}
+
+async function generateAndSharePDF(){
+  // Generate the client PDF with proper filename
+  const s=cSes;
+  const rp=s.reportingPeriod?fmtRP(s.reportingPeriod).replace(/[^a-zA-Z0-9 ]/g,'').replace(/ +/g,'_'):'';
+  const svcDate=s.date||'';
+  const fname='ACS_Field_Report'+(rp?'_'+rp:'')+'_'+svcDate+'.pdf';
+
+  // Trigger the PDF export with the proper name
+  toast('Generating PDF...');
+  document.getElementById('expSel').innerHTML='<option value="'+s.id+'" selected>'+s.clientName+'</option>';
+  // Call expPDF directly with custom filename
+  await expPDFWithName('full',fname);
+}
+
+// === ROUTE MAP SCOPING ===
+function getOnsiteTrack(session){
+  if(!session.track||!session.track.length)return[];
+  const start=session.navToEnd||session.startTime;
+  const end=session.navBackStart||session.endTime||Date.now();
+  return session.track.filter(p=>p.t>=start&&p.t<=end);
+}
+function getFullTrack(session){return session.track||[]}
 
 // === CLEAR ALL ===
 async function clearAll(){if(!confirm('Delete ALL data?'))return;if(!confirm('Absolutely sure?'))return;await CLR('clients');await CLR('locations');await CLR('features');await CLR('sessions');await CLR('readings');await CLR('groups');await CLR('baselines');cSes=null;localStorage.removeItem('lastSes4');updSesUI();nav('clients');toast('All data cleared')}
