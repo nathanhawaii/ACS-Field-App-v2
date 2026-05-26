@@ -278,6 +278,8 @@ select.fi{background:#fff}
       </div>
       <div class="coll-content" id="sesInfoBody"></div>
     </div>
+    <!-- Navigation -->
+    <div class="card" id="navCard" style="display:none;border-color:var(--blue)"></div>
     <!-- Hydrogeologic view -->
     <div id="sesHydro">
       <div class="stats">
@@ -358,21 +360,21 @@ select.fi{background:#fff}
         <span style="color:var(--dim);font-size:11px" id="prevReadDate"></span>
         <div id="usageDelta" style="display:none;margin-top:4px;font-weight:700;color:var(--g)"></div>
       </div>
-      <input type="number" class="fi" id="mtrReg" placeholder="Enter value from photo" inputmode="decimal" step="any" oninput="calcDelta()">
+      <input type="number" class="fi" id="mtrReg" placeholder="Enter value from photo" inputmode="decimal" step="any" oninput="calcDelta();draftDebounce(autoSaveMtrDraft)">
     </div>
   </div>
   <!-- CHECKBOXES -->
   <div class="card">
     <div class="card-t">Field Conditions</div>
     <div class="cb-group">
-      <div class="cb-item"><input type="checkbox" id="cb_mObstructed"><label for="cb_mObstructed">Meter Obstructed</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_mVegDestruct"><label for="cb_mVegDestruct">Vegetation Destruct</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_mVegHerb"><label for="cb_mVegHerb">Vegetation Herbicide Application</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_mExtended"><label for="cb_mExtended">Extended Effort</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_mDecon"><label for="cb_mDecon">Decontamination Required</label></div>
+      <div class="cb-item"><input type="checkbox" id="cb_mObstructed" onchange="autoSaveMtrDraft()"><label for="cb_mObstructed">Meter Obstructed</label></div>
+      <div class="cb-item"><input type="checkbox" id="cb_mVegDestruct" onchange="autoSaveMtrDraft()"><label for="cb_mVegDestruct">Vegetation Destruct</label></div>
+      <div class="cb-item"><input type="checkbox" id="cb_mVegHerb" onchange="autoSaveMtrDraft()"><label for="cb_mVegHerb">Vegetation Herbicide Application</label></div>
+      <div class="cb-item"><input type="checkbox" id="cb_mExtended" onchange="autoSaveMtrDraft()"><label for="cb_mExtended">Extended Effort</label></div>
+      <div class="cb-item"><input type="checkbox" id="cb_mDecon" onchange="autoSaveMtrDraft()"><label for="cb_mDecon">Decontamination Required</label></div>
     </div>
   </div>
-  <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="mtrNotes" placeholder="Observations, issues, maintenance needed..."></textarea></div>
+  <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="mtrNotes" placeholder="Observations, issues, maintenance needed..." oninput="draftDebounce(autoSaveMtrDraft)"></textarea></div>
   <button class="btn btn-p" onclick="saveMtr()">Save Meter Reading</button>
 </div>
 
@@ -394,36 +396,36 @@ select.fi{background:#fff}
   </div>
   <div class="fg"><label class="fl">Pre-Check Pump Status</label>
     <div class="rgroup" id="pStat">
-      <div class="ropt" onclick="selR(this,'pStat')" data-value="on">ON</div>
-      <div class="ropt" onclick="selR(this,'pStat')" data-value="off">OFF</div>
-      <div class="ropt" onclick="selR(this,'pStat')" data-value="oos">OUT OF SERVICE</div>
+      <div class="ropt" onclick="selR(this,'pStat');autoSaveWellDraft()" data-value="on">ON</div>
+      <div class="ropt" onclick="selR(this,'pStat');autoSaveWellDraft()" data-value="off">OFF</div>
+      <div class="ropt" onclick="selR(this,'pStat');autoSaveWellDraft()" data-value="oos">OUT OF SERVICE</div>
     </div>
   </div>
-  <div class="fg"><label class="fl">Water Depth (ft)</label><input type="number" class="fi" id="wDepth" placeholder="e.g. 42.5" inputmode="decimal" step="any"></div>
+  <div class="fg"><label class="fl">Water Depth (ft)</label><input type="number" class="fi" id="wDepth" placeholder="e.g. 42.5" inputmode="decimal" step="any" oninput="draftDebounce(autoSaveWellDraft)"></div>
   <div class="section-box">
     <div class="card-t">💧 Water Sample</div>
-    <div class="fg"><label class="fl">Temperature (°F)</label><input type="number" class="fi" id="wTemp" placeholder="e.g. 72.3" inputmode="decimal" step="any"></div>
+    <div class="fg"><label class="fl">Temperature (°F)</label><input type="number" class="fi" id="wTemp" placeholder="e.g. 72.3" inputmode="decimal" step="any" oninput="draftDebounce(autoSaveWellDraft)"></div>
     <div class="fg"><label class="fl">Conductivity</label>
       <div class="unit-input-wrap">
-        <input type="number" class="fi" id="wCond" placeholder="Value" inputmode="decimal" step="any" oninput="convCond()">
-        <select class="fi" id="wCondU" onchange="convCond()"><option value="S">S</option><option value="mS">mS</option><option value="uS">µS</option></select>
+        <input type="number" class="fi" id="wCond" placeholder="Value" inputmode="decimal" step="any" oninput="convCond();draftDebounce(autoSaveWellDraft)">
+        <select class="fi" id="wCondU" onchange="convCond();autoSaveWellDraft()"><option value="S">S</option><option value="mS">mS</option><option value="uS">µS</option></select>
       </div>
       <div class="conv-row" id="condRow" style="display:none"><span class="conv-label">Converted:</span><span class="conv-val" id="condVal">— mS</span></div>
     </div>
-    <div class="fg"><label class="fl">Sample Time</label><input type="time" class="fi" id="wTime"></div>
+    <div class="fg"><label class="fl">Sample Time</label><input type="time" class="fi" id="wTime" onchange="autoSaveWellDraft()"></div>
   </div>
   <!-- CHECKBOXES -->
   <div class="card">
     <div class="card-t">Field Conditions</div>
     <div class="cb-group">
-      <div class="cb-item"><input type="checkbox" id="cb_wObstructed"><label for="cb_wObstructed">Meter Obstructed</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_wVegDestruct"><label for="cb_wVegDestruct">Vegetation Destruct</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_wVegHerb"><label for="cb_wVegHerb">Vegetation Herbicide Application</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_wExtended"><label for="cb_wExtended">Extended Effort</label></div>
-      <div class="cb-item"><input type="checkbox" id="cb_wDecon"><label for="cb_wDecon">Decontamination Required</label></div>
+      <div class="cb-item"><input type="checkbox" id="cb_wObstructed" onchange="autoSaveWellDraft()"><label for="cb_wObstructed">Meter Obstructed</label></div>
+      <div class="cb-item"><input type="checkbox" id="cb_wVegDestruct" onchange="autoSaveWellDraft()"><label for="cb_wVegDestruct">Vegetation Destruct</label></div>
+      <div class="cb-item"><input type="checkbox" id="cb_wVegHerb" onchange="autoSaveWellDraft()"><label for="cb_wVegHerb">Vegetation Herbicide Application</label></div>
+      <div class="cb-item"><input type="checkbox" id="cb_wExtended" onchange="autoSaveWellDraft()"><label for="cb_wExtended">Extended Effort</label></div>
+      <div class="cb-item"><input type="checkbox" id="cb_wDecon" onchange="autoSaveWellDraft()"><label for="cb_wDecon">Decontamination Required</label></div>
     </div>
   </div>
-  <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="wellNotes" placeholder="Observations, issues..."></textarea></div>
+  <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="wellNotes" placeholder="Observations, issues..." oninput="draftDebounce(autoSaveWellDraft)"></textarea></div>
   <button class="btn btn-p" onclick="saveWell()">Save Well Reading</button>
 </div>
 
@@ -447,7 +449,7 @@ select.fi{background:#fff}
     <div class="card-t">Data</div>
     <div id="custFields"></div>
   </div>
-  <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="custNotes" placeholder="Observations..."></textarea></div>
+  <div class="fg"><label class="fl">Notes</label><textarea class="fi" id="custNotes" placeholder="Observations..." oninput="draftDebounce(autoSaveCustDraft)"></textarea></div>
   <button class="btn btn-p" onclick="saveCustom()">Save</button>
 </div>
 
@@ -471,7 +473,7 @@ select.fi{background:#fff}
     <div class="pgrid" id="grpPhotos"></div>
     <div id="grpPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
   </div>
-  <div class="fg"><label class="fl">Group Notes</label><textarea class="fi" id="grpNotes" placeholder="Notes about this group..."></textarea></div>
+  <div class="fg"><label class="fl">Group Notes</label><textarea class="fi" id="grpNotes" placeholder="Notes about this group..." oninput="draftDebounce(autoSaveGrpDraft)"></textarea></div>
   <button class="btn btn-p" onclick="saveGroup()">Save Group</button>
   <button class="btn btn-d" onclick="deleteGroup()" style="margin-top:8px;font-size:13px">Delete Group</button>
 </div>
@@ -707,7 +709,7 @@ async function init(){
   await odb();
   document.getElementById('sesD').value=new Date().toISOString().split('T')[0];
   const last=localStorage.getItem('lastSes4');
-  if(last){try{const s=await G('sessions',last);if(s){cSes=s;cCli=s.clientId;cLoc=s.locationId;updSesUI()}}catch(e){}}
+  if(last){try{const s=await G('sessions',last);if(s){cSes=s;cCli=s.clientId;cLoc=s.locationId;updSesUI();if(s.status!=='completed')startTracking()}}catch(e){}}
   renderClis();renderSettings();
   if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
@@ -844,8 +846,8 @@ async function createSes(){
     createdAt:Date.now()
   };
   await P('sessions',s);cSes=s;cCli=ci;cLoc=li;
-  localStorage.setItem('lastSes4',s.id);updSesUI();closeM('sesModal');nav('session');toast('Session started')}
-async function loadSes(id){const s=await G('sessions',id);if(!s)return;cSes=s;cCli=s.clientId;cLoc=s.locationId;localStorage.setItem('lastSes4',s.id);updSesUI();closeM('sesModal');nav('session');toast('Loaded')}
+  localStorage.setItem('lastSes4',s.id);updSesUI();closeM('sesModal');nav('session');startTracking();toast('Session started')}
+async function loadSes(id){const s=await G('sessions',id);if(!s)return;cSes=s;cCli=s.clientId;cLoc=s.locationId;localStorage.setItem('lastSes4',s.id);updSesUI();closeM('sesModal');nav('session');if(s.status!=='completed')startTracking();toast('Loaded')}
 async function delSes(id){if(!confirm('Delete session?'))return;const rs=(await A('readings')).filter(r=>r.sessionId===id);for(const r of rs)await D('readings',r.id);const gs=(await A('groups')).filter(g=>g.sessionId===id);for(const g of gs)await D('groups',g.id);await D('sessions',id);if(cSes&&cSes.id===id){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}renderSesList();toast('Deleted')}
 async function renderSesList(){const ss=(await A('sessions')).sort((a,b)=>b.createdAt-a.createdAt);const el=document.getElementById('sesList');if(!ss.length){el.innerHTML='<div class="empty"><p>No sessions.</p></div>';return}el.innerHTML=ss.map(s=>'<div class="li"><div onclick="loadSes(\''+s.id+'\')" style="flex:1"><div class="li-id">'+s.clientName+' — '+s.locationName+'</div><div class="li-sub">'+fD(s.date)+' • '+(s.serviceType||'')+' <span class="badge '+(s.status==='completed'?'b-complete':'b-active')+'">'+(s.status||'active')+'</span></div></div><button style="background:#fde8e8;border:none;color:var(--red);width:30px;height:30px;border-radius:8px;font-size:14px;cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();delSes(\''+s.id+'\')">✕</button></div>').join('')}
 function updSesUI(){const bar=document.getElementById('sbar'),sub=document.getElementById('hdrSub');if(cSes){bar.style.display='flex';document.getElementById('sbarClient').textContent=cSes.clientName;document.getElementById('sbarLoc').textContent=cSes.locationName;document.getElementById('sbarDate').textContent=fD(cSes.date);sub.textContent=cSes.clientName+' — '+cSes.locationName;document.getElementById('noSes').style.display='none';document.getElementById('sesActive').style.display='block'}else{bar.style.display='none';sub.textContent='Setup your clients to begin';document.getElementById('noSes').style.display='block';document.getElementById('sesActive').style.display='none'}}
@@ -869,8 +871,12 @@ async function renderSes(){
   if(cSes.startNotes)info+='<strong>Notes:</strong> '+cSes.startNotes+'<br>';
   if(cSes.endNotes)info+='<strong>Closing Notes:</strong> '+cSes.endNotes+'<br>';
   if(cSes.status==='completed'&&cSes.startTime&&cSes.endTime){const dur=Math.round((cSes.endTime-cSes.startTime)/60000);const h=Math.floor(dur/60),m=dur%60;info+='<strong>Duration:</strong> '+h+'h '+m+'m<br>'}
+  if(cSes.navToStart&&cSes.navToEnd){const t=Math.round((cSes.navToEnd-cSes.navToStart)/60000);info+='<strong>Travel to site:</strong> '+t+' min<br>'}
+  if(cSes.navBackStart&&cSes.navBackEnd){const t=Math.round((cSes.navBackEnd-cSes.navBackStart)/60000);info+='<strong>Return travel:</strong> '+t+' min<br>'}
+  if(cSes.track&&cSes.track.length){info+='<strong>GPS Track:</strong> '+cSes.track.length+' points'+(trackInterval?' <span style="color:var(--ok)">● Recording</span>':'')+'<br>'}
   info+='</div>';
   document.getElementById('sesInfoBody').innerHTML=info;
+  renderNavUI();
 
   // Show/hide based on service type
   const isHydro=cSes.serviceType==='hydrogeologic';
@@ -923,48 +929,168 @@ async function renderSes(){
 function renderGenPhotos(){const el=document.getElementById('genPhotos');el.innerHTML=genPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="genPh.splice('+i+',1);renderGenPhotos();autoSaveGeneric()">✕</button></div>').join('')}
 async function autoSaveGeneric(){if(!cSes)return;await P('readings',{id:cSes.id+'_generic',sessionId:cSes.id,featureId:'generic',type:'generic',notes:document.getElementById('genNotes').value,photos:genPh,timestamp:Date.now()})}
 
-// === NEXT FEATURE NAV ===
-async function goNext(){
-  if(!cSes)return nav('session');
-  const fs=(await A('features')).filter(f=>f.locationId===cSes.locationId);
-  const rs=await A('readings');
-  const done=new Set(rs.filter(r=>r.sessionId===cSes.id).map(r=>r.featureId));
-  // Build ordered list: meters, wells, custom
-  const ordered=[];
-  fs.filter(f=>f.type==='meter').sort((a,b)=>a.featureId.localeCompare(b.featureId)).forEach(f=>ordered.push(f));
-  fs.filter(f=>f.type==='well').sort((a,b)=>a.featureId.localeCompare(b.featureId)).forEach(f=>ordered.push(f));
-  fs.filter(f=>f.type==='custom').sort((a,b)=>a.featureId.localeCompare(b.featureId)).forEach(f=>ordered.push(f));
-  // Find current position and next pending
-  const curIdx=ordered.findIndex(f=>f.id===cFeat);
-  // Look forward from current position first
-  for(let i=curIdx+1;i<ordered.length;i++){
-    if(!done.has(ordered[i].id)){
-      const f=ordered[i];
-      toast('Saved ✓ → Next: '+f.featureId);
-      if(f.type==='meter')return openMtr(f.id);
-      if(f.type==='well')return openWell2(f.id);
-      if(f.type==='custom')return openCustomCheck(f.id);
-    }
+// === NAVIGATION (Apple Maps) ===
+let trackInterval=null;
+let trackPoints=[];
+let trackSaveTimer=null;
+
+function startTracking(){
+  if(trackInterval)return;
+  if(!navigator.geolocation){return}
+  // Load existing track from session
+  trackPoints=cSes.track||[];
+  trackInterval=setInterval(()=>{
+    navigator.geolocation.getCurrentPosition(p=>{
+      trackPoints.push({lat:p.coords.latitude,lng:p.coords.longitude,t:Date.now()});
+      // Save to DB every 30 seconds worth of points (6 points)
+      if(!trackSaveTimer){trackSaveTimer=setTimeout(async()=>{
+        if(cSes){cSes.track=trackPoints;await P('sessions',cSes)}
+        trackSaveTimer=null;
+      },5000)}
+    },()=>{},{enableHighAccuracy:true,timeout:4000,maximumAge:2000});
+  },5000);
+}
+function stopTracking(){
+  if(trackInterval){clearInterval(trackInterval);trackInterval=null}
+  if(trackSaveTimer){clearTimeout(trackSaveTimer);trackSaveTimer=null}
+  // Final save
+  if(cSes){cSes.track=trackPoints;P('sessions',cSes)}
+}
+
+// Route map renderer for PDF
+function renderRouteMap(track,features){
+  if(!track||track.length<2)return null;
+  const W=700,H=500,pad={t:30,r:30,b:30,l:30};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  // Calculate bounds
+  const allLats=[...track.map(p=>p.lat),...features.filter(f=>f.lat).map(f=>f.lat)];
+  const allLngs=[...track.map(p=>p.lng),...features.filter(f=>f.lng).map(f=>f.lng)];
+  const minLat=Math.min(...allLats),maxLat=Math.max(...allLats);
+  const minLng=Math.min(...allLngs),maxLng=Math.max(...allLngs);
+  const latRange=maxLat-minLat||0.001;const lngRange=maxLng-minLng||0.001;
+  const latPad=latRange*0.1;const lngPad=lngRange*0.1;
+  const bMinLat=minLat-latPad,bMaxLat=maxLat+latPad,bMinLng=minLng-lngPad,bMaxLng=maxLng+lngPad;
+  const bLatR=bMaxLat-bMinLat,bLngR=bMaxLng-bMinLng;
+  const toX=lng=>pad.l+((lng-bMinLng)/bLngR)*cw;
+  const toY=lat=>pad.t+ch-((lat-bMinLat)/bLatR)*ch;
+
+  const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  // Background
+  ctx.fillStyle='#f4f3f0';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#e0ddd8';ctx.lineWidth=1;
+  // Grid
+  for(let i=0;i<=8;i++){const x=pad.l+cw*(i/8);ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ch);ctx.stroke();const y=pad.t+ch*(i/8);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke()}
+  // Title
+  ctx.fillStyle='#1a1a1a';ctx.font='bold 14px -apple-system,sans-serif';ctx.fillText('Session Route Map — '+track.length+' GPS points',pad.l,20);
+  // Route line
+  ctx.strokeStyle='#2471a3';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.beginPath();
+  track.forEach((p,i)=>{const x=toX(p.lng),y=toY(p.lat);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});
+  ctx.stroke();
+  // Start/end markers
+  const s=track[0],e=track[track.length-1];
+  ctx.fillStyle='#27ae60';ctx.beginPath();ctx.arc(toX(s.lng),toY(s.lat),6,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#c0392b';ctx.beginPath();ctx.arc(toX(e.lng),toY(e.lat),6,0,Math.PI*2);ctx.fill();
+  // Feature markers
+  const colors={'meter':'#2d5a27','well':'#2471a3','custom':'#d4890a'};
+  features.filter(f=>f.lat&&f.lng).forEach(f=>{
+    const x=toX(f.lng),y=toY(f.lat);
+    ctx.fillStyle=colors[f.type]||'#6b6b6b';
+    ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='#1a1a1a';ctx.font='bold 10px -apple-system,sans-serif';ctx.textAlign='center';
+    ctx.fillText(f.featureId,x,y-9);
+  });
+  // Legend
+  const ly=H-12;ctx.font='11px -apple-system,sans-serif';ctx.textAlign='left';
+  ctx.fillStyle='#27ae60';ctx.beginPath();ctx.arc(pad.l+8,ly,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#1a1a1a';ctx.fillText('Start',pad.l+16,ly+4);
+  ctx.fillStyle='#c0392b';ctx.beginPath();ctx.arc(pad.l+58,ly,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#1a1a1a';ctx.fillText('End',pad.l+66,ly+4);
+  ctx.fillStyle='#2d5a27';ctx.beginPath();ctx.arc(pad.l+100,ly,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#1a1a1a';ctx.fillText('Meter',pad.l+108,ly+4);
+  ctx.fillStyle='#2471a3';ctx.beginPath();ctx.arc(pad.l+150,ly,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#1a1a1a';ctx.fillText('Well',pad.l+158,ly+4);
+  // Scale bar
+  const scaleDeg=bLngR*0.2;const scaleMi=scaleDeg*54.6;// rough miles at ~21° lat
+  const scaleW=cw*0.2;
+  ctx.strokeStyle='#1a1a1a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(W-pad.r-scaleW,ly);ctx.lineTo(W-pad.r,ly);ctx.stroke();
+  ctx.textAlign='center';ctx.fillText(scaleMi.toFixed(1)+' mi',W-pad.r-scaleW/2,ly-6);
+  // Border
+  ctx.strokeStyle='#1a1a1a';ctx.lineWidth=1.5;ctx.strokeRect(pad.l,pad.t,cw,ch);
+  return canvas.toDataURL('image/png',0.9);
+}
+async function startNavTo(){
+  if(!cSes)return;
+  const loc=await G('locations',cSes.locationId);
+  // Get first feature with coordinates for destination
+  const fs=(await A('features')).filter(f=>f.locationId===cSes.locationId&&f.lat&&f.lng);
+  let lat,lng;
+  if(fs.length){lat=fs[0].lat;lng=fs[0].lng}
+  else if(loc&&loc.lat&&loc.lng){lat=loc.lat;lng=loc.lng}
+  else{toast('No coordinates set for any feature. Set GPS on at least one feature.');return}
+  // Log nav start
+  cSes.navToStart=Date.now();
+  cSes.navToEnd=null;
+  await P('sessions',cSes);
+  renderNavUI();
+  // Open Apple Maps
+  window.open('https://maps.apple.com/?daddr='+lat+','+lng+'&dirflg=d','_blank');
+  toast('Navigation started');
+}
+async function endNavTo(){
+  cSes.navToEnd=Date.now();
+  await P('sessions',cSes);
+  renderNavUI();
+  const mins=Math.round((cSes.navToEnd-cSes.navToStart)/60000);
+  toast('Travel to site: '+mins+' min');
+}
+async function startNavBack(){
+  cSes.navBackStart=Date.now();
+  cSes.navBackEnd=null;
+  await P('sessions',cSes);
+  renderNavUI();
+  // Navigate home — user can set their base address in settings later
+  // For now just open Maps with no destination (user picks)
+  window.open('https://maps.apple.com/','_blank');
+  toast('Return navigation started');
+}
+async function endNavBack(){
+  cSes.navBackEnd=Date.now();
+  await P('sessions',cSes);
+  renderNavUI();
+  const mins=Math.round((cSes.navBackEnd-cSes.navBackStart)/60000);
+  toast('Return travel: '+mins+' min');
+}
+function renderNavUI(){
+  const el=document.getElementById('navCard');
+  if(!cSes){el.style.display='none';return}
+  el.style.display='block';
+  let h='';
+  // To site
+  if(!cSes.navToStart){
+    h+='<button class="btn btn-p" onclick="startNavTo()" style="font-size:13px">🧭 Navigate to Site</button>';
+  }else if(!cSes.navToEnd){
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:13px">🧭 <strong>Navigating to site...</strong></span><span style="font-size:12px;color:var(--dim)" id="navToTimer"></span></div>';
+    h+='<button class="btn btn-w" onclick="endNavTo()" style="font-size:13px">📍 Arrived — End Navigation</button>';
+  }else{
+    const mins=Math.round((cSes.navToEnd-cSes.navToStart)/60000);
+    h+='<div style="font-size:13px;margin-bottom:6px">✅ Travel to site: <strong>'+mins+' min</strong> <span style="color:var(--dim)">('+fT(cSes.navToStart)+' → '+fT(cSes.navToEnd)+')</span></div>';
   }
-  // Then wrap around to check before current position
-  for(let i=0;i<curIdx;i++){
-    if(!done.has(ordered[i].id)){
-      const f=ordered[i];
-      toast('Saved ✓ → Next: '+f.featureId);
-      if(f.type==='meter')return openMtr(f.id);
-      if(f.type==='well')return openWell2(f.id);
-      if(f.type==='custom')return openCustomCheck(f.id);
-    }
+  // Return
+  if(cSes.navToEnd&&!cSes.navBackStart){
+    h+='<button class="btn btn-s" onclick="startNavBack()" style="font-size:13px;margin-top:6px">🧭 Navigate to Base</button>';
+  }else if(cSes.navBackStart&&!cSes.navBackEnd){
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;margin-bottom:8px"><span style="font-size:13px">🧭 <strong>Returning to base...</strong></span></div>';
+    h+='<button class="btn btn-w" onclick="endNavBack()" style="font-size:13px">🏠 Arrived — End Navigation</button>';
+  }else if(cSes.navBackEnd){
+    const mins=Math.round((cSes.navBackEnd-cSes.navBackStart)/60000);
+    h+='<div style="font-size:13px;margin-top:6px">✅ Return travel: <strong>'+mins+' min</strong> <span style="color:var(--dim)">('+fT(cSes.navBackStart)+' → '+fT(cSes.navBackEnd)+')</span></div>';
+    const total=Math.round(((cSes.navToEnd-cSes.navToStart)+(cSes.navBackEnd-cSes.navBackStart))/60000);
+    h+='<div style="font-size:13px;margin-top:4px;font-weight:700">Total travel: '+total+' min</div>';
   }
-  // All done
-  const total=ordered.length;const doneCount=ordered.filter(f=>done.has(f.id)).length;
-  toast('All '+total+' features complete! ✓');
-  nav('session');
+  el.innerHTML=h;
 }
 
 // === SESSION COMPLETE ===
 function startCompleteSession(){showM('completeModal');document.getElementById('endNotes').value=''}
-async function confirmComplete(){cSes.endTime=Date.now();cSes.status='completed';cSes.endNotes=document.getElementById('endNotes').value;await P('sessions',cSes);closeM('completeModal');renderSes();toast('Session completed')}
+async function confirmComplete(){stopTracking();cSes.endTime=Date.now();cSes.status='completed';cSes.endNotes=document.getElementById('endNotes').value;cSes.track=trackPoints;await P('sessions',cSes);closeM('completeModal');renderSes();toast('Session completed')}
 
 // === METER CHECK ===
 async function openMtr(fid){cFeat=fid;const f=await G('features',fid);mPh=[];regP=null;document.getElementById('mtrT').textContent='Meter: '+f.featureId;document.getElementById('mtrReg').value='';document.getElementById('mtrNotes').value='';document.getElementById('regSelArea').style.display='none';['cb_mObstructed','cb_mVegDestruct','cb_mVegHerb','cb_mExtended','cb_mDecon'].forEach(x=>document.getElementById(x).checked=false);
@@ -977,21 +1103,42 @@ const prev=await getPrevReading(fid,cSes.id);
 const prBox=document.getElementById('prevReadingBox');
 if(prev){prBox.style.display='block';document.getElementById('prevReadVal').textContent=fmtNum(prev.value);document.getElementById('prevReadDate').textContent=prev.date?' ('+prev.date+')':' ('+new Date(prev.timestamp).toLocaleDateString()+')';prevReadingVal=prev.value;calcDelta()}else{prBox.style.display='none'}
 setTimeout(()=>{const w=document.getElementById('mtrMap');if(vMap){vMap.remove();vMap=null}if(f.lat&&f.lng){w.style.display='block';vMap=L.map(w).setView([f.lat,f.lng],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(vMap);L.marker([f.lat,f.lng]).addTo(vMap).bindPopup(f.featureId).openPopup();setTimeout(()=>vMap.invalidateSize(),200)}else{w.style.display='none'}},100)}
-function renderMP(){document.getElementById('mtrPhotos').innerHTML=mPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="mPh.splice('+i+',1);renderMP()">✕</button></div>').join('');document.getElementById('mtrPC').textContent=mPh.length?mPh.length+' photo'+(mPh.length>1?'s':''):''}
+function renderMP(){document.getElementById('mtrPhotos').innerHTML=mPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="mPh.splice('+i+',1);renderMP();autoSaveMtrDraft()">✕</button></div>').join('');document.getElementById('mtrPC').textContent=mPh.length?mPh.length+' photo'+(mPh.length>1?'s':''):''}
 function startRegSelect(){if(!mPh.length){toast('Take photos first');return}document.getElementById('regGrid').innerHTML=mPh.map((p,i)=>'<div class="pthumb" onclick="selRegP('+i+')" style="cursor:pointer"><img src="'+p+'"></div>').join('');showM('regModal')}
-function selRegP(i){regP=mPh[i];document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;closeM('regModal');setTimeout(()=>document.getElementById('mtrReg').focus(),300)}
+function selRegP(i){regP=mPh[i];document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;closeM('regModal');autoSaveMtrDraft();setTimeout(()=>document.getElementById('mtrReg').focus(),300)}
+// Auto-save drafts
+async function autoSaveMtrDraft(){
+  if(!cSes||!cFeat)return;
+  try{await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'meter',photos:mPh,registerPhoto:regP,registerValue:parseFloat(document.getElementById('mtrReg').value)||null,notes:document.getElementById('mtrNotes').value,checks:{obstructed:document.getElementById('cb_mObstructed').checked,vegDestruct:document.getElementById('cb_mVegDestruct').checked,vegHerbicide:document.getElementById('cb_mVegHerb').checked,extended:document.getElementById('cb_mExtended').checked,decon:document.getElementById('cb_mDecon').checked},timestamp:Date.now(),draft:true})}catch(e){}}
+async function autoSaveWellDraft(){
+  if(!cSes||!cFeat)return;
+  const pump=document.querySelector('#pStat .ropt.sel');
+  const cv=parseFloat(document.getElementById('wCond').value),cu=document.getElementById('wCondU').value;
+  let cms=null;if(!isNaN(cv)){if(cu==='S')cms=cv*1000;else if(cu==='mS')cms=cv;else cms=cv/1000}
+  try{await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'well',photos:wPh,pumpStatus:pump?pump.dataset.value:null,waterDepth:parseFloat(document.getElementById('wDepth').value)||null,sampleTemp:parseFloat(document.getElementById('wTemp').value)||null,conductivityValue:cv||null,conductivityUnit:cu,conductivityMS:cms,sampleTime:document.getElementById('wTime').value||null,notes:document.getElementById('wellNotes').value,checks:{obstructed:document.getElementById('cb_wObstructed').checked,vegDestruct:document.getElementById('cb_wVegDestruct').checked,vegHerbicide:document.getElementById('cb_wVegHerb').checked,extended:document.getElementById('cb_wExtended').checked,decon:document.getElementById('cb_wDecon').checked},timestamp:Date.now(),draft:true})}catch(e){}}
+async function autoSaveCustDraft(){
+  if(!cSes||!cFeat)return;
+  try{const f=await G('features',cFeat);const cfs=f?f.customFields||[]:[];
+  const fv={};cfs.forEach((cf,i)=>{const el=document.getElementById('cf_'+i);if(el)fv[cf.name]=el.value});
+  await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'custom',customLabel:f?f.customLabel:'Custom',photos:custPh,fieldValues:fv,notes:document.getElementById('custNotes').value,timestamp:Date.now(),draft:true})}catch(e){}}
+async function autoSaveGrpDraft(){
+  if(!cSes||!curGroupId)return;
+  try{await P('readings',{id:cSes.id+'_grp_'+curGroupId,sessionId:cSes.id,featureId:curGroupId,type:'group_photos',photos:grpPh,notes:document.getElementById('grpNotes').value,timestamp:Date.now(),draft:true})}catch(e){}}
+let _draftTimer=null;
+function draftDebounce(fn){clearTimeout(_draftTimer);_draftTimer=setTimeout(fn,800)}
+
 async function saveMtr(){const v=document.getElementById('mtrReg').value;if(!v){toast('Enter register value');return}if(!regP){toast('Select or take register photo');return}
-await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'meter',photos:mPh,registerPhoto:regP,registerValue:parseFloat(v),notes:document.getElementById('mtrNotes').value,checks:{obstructed:document.getElementById('cb_mObstructed').checked,vegDestruct:document.getElementById('cb_mVegDestruct').checked,vegHerbicide:document.getElementById('cb_mVegHerb').checked,extended:document.getElementById('cb_mExtended').checked,decon:document.getElementById('cb_mDecon').checked},timestamp:Date.now()});toast('Saved');goNext()}
+await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'meter',photos:mPh,registerPhoto:regP,registerValue:parseFloat(v),notes:document.getElementById('mtrNotes').value,checks:{obstructed:document.getElementById('cb_mObstructed').checked,vegDestruct:document.getElementById('cb_mVegDestruct').checked,vegHerbicide:document.getElementById('cb_mVegHerb').checked,extended:document.getElementById('cb_mExtended').checked,decon:document.getElementById('cb_mDecon').checked},timestamp:Date.now(),draft:false});toast('Saved');nav('session')}
 
 // === WELL CHECK ===
 async function openWell2(fid){cFeat=fid;const f=await G('features',fid);wPh=[];document.getElementById('wellT').textContent='Well: '+f.featureId;['wDepth','wTemp','wCond','wTime','wellNotes'].forEach(x=>document.getElementById(x).value='');document.getElementById('wCondU').value='S';document.getElementById('condRow').style.display='none';document.querySelectorAll('#pStat .ropt').forEach(r=>r.classList.remove('sel'));['cb_wObstructed','cb_wVegDestruct','cb_wVegHerb','cb_wExtended','cb_wDecon'].forEach(x=>document.getElementById(x).checked=false);
 const rs=await A('readings');const ex=rs.find(r=>r.sessionId===cSes.id&&r.featureId===fid);
 if(ex){wPh=ex.photos||[];document.getElementById('wDepth').value=ex.waterDepth||'';document.getElementById('wTemp').value=ex.sampleTemp||'';if(ex.conductivityValue!=null){document.getElementById('wCond').value=ex.conductivityValue;document.getElementById('wCondU').value=ex.conductivityUnit||'S'}document.getElementById('wTime').value=ex.sampleTime||'';document.getElementById('wellNotes').value=ex.notes||'';if(ex.pumpStatus){const o=document.querySelector('#pStat [data-value="'+ex.pumpStatus+'"]');if(o)o.classList.add('sel')}if(ex.checks){document.getElementById('cb_wObstructed').checked=!!ex.checks.obstructed;document.getElementById('cb_wVegDestruct').checked=!!ex.checks.vegDestruct;document.getElementById('cb_wVegHerb').checked=!!ex.checks.vegHerbicide;document.getElementById('cb_wExtended').checked=!!ex.checks.extended;document.getElementById('cb_wDecon').checked=!!ex.checks.decon}convCond()}
 renderWP();nav('well');setTimeout(()=>{const w=document.getElementById('wellMap');if(vMap){vMap.remove();vMap=null}if(f.lat&&f.lng){w.style.display='block';vMap=L.map(w).setView([f.lat,f.lng],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(vMap);L.marker([f.lat,f.lng]).addTo(vMap).bindPopup(f.featureId).openPopup();setTimeout(()=>vMap.invalidateSize(),200)}else{w.style.display='none'}},100)}
-function renderWP(){document.getElementById('wellPhotos').innerHTML=wPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="wPh.splice('+i+',1);renderWP()">✕</button></div>').join('');document.getElementById('wellPC').textContent=wPh.length?wPh.length+' photo'+(wPh.length>1?'s':''):''}
+function renderWP(){document.getElementById('wellPhotos').innerHTML=wPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="wPh.splice('+i+',1);renderWP();autoSaveWellDraft()">✕</button></div>').join('');document.getElementById('wellPC').textContent=wPh.length?wPh.length+' photo'+(wPh.length>1?'s':''):''}
 function convCond(){const v=parseFloat(document.getElementById('wCond').value),u=document.getElementById('wCondU').value;if(isNaN(v)){document.getElementById('condRow').style.display='none';return}let ms;if(u==='S')ms=v*1000;else if(u==='mS')ms=v;else ms=v/1000;document.getElementById('condRow').style.display='flex';document.getElementById('condVal').textContent=ms.toFixed(4)+' mS'}
 async function saveWell(){const pump=document.querySelector('#pStat .ropt.sel'),depth=document.getElementById('wDepth').value;if(!pump){toast('Select pump status');return}if(!depth){toast('Enter depth');return}const cv=parseFloat(document.getElementById('wCond').value),cu=document.getElementById('wCondU').value;let cms=null;if(!isNaN(cv)){if(cu==='S')cms=cv*1000;else if(cu==='mS')cms=cv;else cms=cv/1000}
-await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'well',photos:wPh,pumpStatus:pump.dataset.value,waterDepth:parseFloat(depth),sampleTemp:parseFloat(document.getElementById('wTemp').value)||null,conductivityValue:cv||null,conductivityUnit:cu,conductivityMS:cms,sampleTime:document.getElementById('wTime').value||null,notes:document.getElementById('wellNotes').value,checks:{obstructed:document.getElementById('cb_wObstructed').checked,vegDestruct:document.getElementById('cb_wVegDestruct').checked,vegHerbicide:document.getElementById('cb_wVegHerb').checked,extended:document.getElementById('cb_wExtended').checked,decon:document.getElementById('cb_wDecon').checked},timestamp:Date.now()});toast('Saved');goNext()}
+await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'well',photos:wPh,pumpStatus:pump.dataset.value,waterDepth:parseFloat(depth),sampleTemp:parseFloat(document.getElementById('wTemp').value)||null,conductivityValue:cv||null,conductivityUnit:cu,conductivityMS:cms,sampleTime:document.getElementById('wTime').value||null,notes:document.getElementById('wellNotes').value,checks:{obstructed:document.getElementById('cb_wObstructed').checked,vegDestruct:document.getElementById('cb_wVegDestruct').checked,vegHerbicide:document.getElementById('cb_wVegHerb').checked,extended:document.getElementById('cb_wExtended').checked,decon:document.getElementById('cb_wDecon').checked},timestamp:Date.now(),draft:false});toast('Saved');nav('session')}
 
 // === CAMERA ===
 function capturePhoto(tgt){capTgt=tgt;document.getElementById('camIn').value='';document.getElementById('camIn').click()}
@@ -1016,7 +1163,12 @@ document.getElementById('libIn').addEventListener('change',function(e){
         else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}
         else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos()}
         else if(capTgt==='custom'){custPh.push(d);renderCustPhotos()}
-        processed++;if(processed===files.length)toast(files.length+' photos added');
+        processed++;if(processed===files.length){toast(files.length+' photos added');
+          if(capTgt==='meter')autoSaveMtrDraft();
+          else if(capTgt==='well')autoSaveWellDraft();
+          else if(capTgt==='group')autoSaveGrpDraft();
+          else if(capTgt==='custom')autoSaveCustDraft();
+        }
       };img.src=ev.target.result;
     };reader.readAsDataURL(files[fi]);
   }
@@ -1030,7 +1182,7 @@ function renderCustomFields(){document.getElementById('customFieldList').innerHT
 
 // Quick add feature from session
 function quickAddFeature(){if(!cSes)return;cLoc=cSes.locationId;openAddFeature();document.getElementById('fsBack').onclick=()=>nav('session')}
-document.getElementById('camIn').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){const img=new Image();img.onload=function(){const c=document.createElement('canvas');const M=1600;let w=img.width,h=img.height;if(w>M||h>M){if(w>h){h=h*M/w;w=M}else{w=w*M/h;h=M}}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);if(capTgt==='meter'){mPh.push(d);renderMP()}else if(capTgt==='well'){wPh.push(d);renderWP()}else if(capTgt==='register'){mPh.push(d);regP=d;renderMP();document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;setTimeout(()=>document.getElementById('mtrReg').focus(),300)}else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos()}else if(capTgt==='custom'){custPh.push(d);renderCustPhotos()}};img.src=ev.target.result};r.readAsDataURL(f)});
+document.getElementById('camIn').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){const img=new Image();img.onload=function(){const c=document.createElement('canvas');const M=1600;let w=img.width,h=img.height;if(w>M||h>M){if(w>h){h=h*M/w;w=M}else{w=w*M/h;h=M}}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);if(capTgt==='meter'){mPh.push(d);renderMP();autoSaveMtrDraft()}else if(capTgt==='well'){wPh.push(d);renderWP();autoSaveWellDraft()}else if(capTgt==='register'){mPh.push(d);regP=d;renderMP();document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;autoSaveMtrDraft();setTimeout(()=>document.getElementById('mtrReg').focus(),300)}else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos();autoSaveGrpDraft()}else if(capTgt==='custom'){custPh.push(d);renderCustPhotos();autoSaveCustDraft()}};img.src=ev.target.result};r.readAsDataURL(f)});
 
 // === HELPERS ===
 function fmtNum(n){if(n==null||isNaN(n))return'—';return Number(n).toLocaleString('en-US')}
@@ -1244,12 +1396,12 @@ async function openCustomCheck(fid){
   renderCustPhotos();nav('custom');
   setTimeout(()=>{const w=document.getElementById('custMap');if(vMap){vMap.remove();vMap=null}if(f.lat&&f.lng){w.style.display='block';vMap=L.map(w).setView([f.lat,f.lng],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(vMap);L.marker([f.lat,f.lng]).addTo(vMap).bindPopup(f.featureId).openPopup();setTimeout(()=>vMap.invalidateSize(),200)}else{w.style.display='none'}},100);
 }
-function renderCustPhotos(){document.getElementById('custPhotos').innerHTML=custPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="custPh.splice('+i+',1);renderCustPhotos()">✕</button></div>').join('');document.getElementById('custPC').textContent=custPh.length?custPh.length+' photo'+(custPh.length>1?'s':''):''}
+function renderCustPhotos(){document.getElementById('custPhotos').innerHTML=custPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="custPh.splice('+i+',1);renderCustPhotos();autoSaveCustDraft()">✕</button></div>').join('');document.getElementById('custPC').textContent=custPh.length?custPh.length+' photo'+(custPh.length>1?'s':''):''}
 async function saveCustom(){
   const f=await G('features',cFeat);const cfs=f.customFields||[];
   const fieldValues={};cfs.forEach((cf,i)=>{const el=document.getElementById('cf_'+i);if(el)fieldValues[cf.name]=el.value});
-  await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'custom',customLabel:f.customLabel||'Custom',photos:custPh,fieldValues,notes:document.getElementById('custNotes').value,timestamp:Date.now()});
-  toast('Saved');goNext();
+  await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:'custom',customLabel:f.customLabel||'Custom',photos:custPh,fieldValues,notes:document.getElementById('custNotes').value,timestamp:Date.now(),draft:false});
+  toast('Saved');nav('session');
 }
 
 // === GROUPS ===
@@ -1295,12 +1447,12 @@ async function openGroup(id){
   nav('group');
 }
 function renderGrpPhotos(){
-  document.getElementById('grpPhotos').innerHTML=grpPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="grpPh.splice('+i+',1);renderGrpPhotos()">✕</button></div>').join('');
+  document.getElementById('grpPhotos').innerHTML=grpPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="grpPh.splice('+i+',1);renderGrpPhotos();autoSaveGrpDraft()">✕</button></div>').join('');
   document.getElementById('grpPC').textContent=grpPh.length?grpPh.length+' group photo'+(grpPh.length>1?'s':''):'';
 }
 async function saveGroup(){
   // Save session photos to readings
-  await P('readings',{id:cSes.id+'_grp_'+curGroupId,sessionId:cSes.id,featureId:curGroupId,type:'group_photos',photos:grpPh,notes:document.getElementById('grpNotes').value,timestamp:Date.now()});
+  await P('readings',{id:cSes.id+'_grp_'+curGroupId,sessionId:cSes.id,featureId:curGroupId,type:'group_photos',photos:grpPh,notes:document.getElementById('grpNotes').value,timestamp:Date.now(),draft:false});
   toast('Group saved');nav('session');
 }
 async function deleteGroup(){
@@ -1405,6 +1557,9 @@ async function expPDF(mode){
   if(s.personnel&&s.personnel.length){addField('Personnel',s.personnel.map(sp=>{const p=settings.personnel.find(x=>x.id===sp.personId);return(p?p.firstName+' '+p.lastName:'?')+' ('+sp.role+')'}).join(', '))}
   if(s.startNotes)addField('Start Notes',s.startNotes);
   if(s.endNotes)addField('Closing Notes',s.endNotes);
+  if(s.navToStart&&s.navToEnd)addField('Travel to Site',Math.round((s.navToEnd-s.navToStart)/60000)+' min');
+  if(s.navBackStart&&s.navBackEnd)addField('Return Travel',Math.round((s.navBackEnd-s.navBackStart)/60000)+' min');
+  if(s.navToEnd&&s.navBackEnd){const total=Math.round(((s.navToEnd-s.navToStart)+(s.navBackEnd-s.navBackStart))/60000);addField('Total Travel',total+' min')}
 
   if(mr.length){
     addSection('Water Meters');
@@ -1521,6 +1676,19 @@ async function expPDF(mode){
     addSection('Service Notes');
     if(gr.notes){const lines=doc.splitTextToSize(gr.notes,cw);checkPage(lines.length*5);doc.setFontSize(9);doc.setFont(undefined,'normal');doc.text(lines,mg,y);y+=lines.length*5+4}
     if(mode==='full'&&gr.photos&&gr.photos.length){addPhotoGrid(gr.photos)}
+  }
+
+  // Route Map
+  if(s.track&&s.track.length>5){
+    addSection('Session Route Map');
+    const routeImg=renderRouteMap(s.track,fs.filter(f=>f.locationId===s.locationId));
+    if(routeImg){
+      checkPage(120);
+      try{doc.addImage(routeImg,'PNG',mg,y,cw,cw*500/700);y+=cw*500/700+6}catch(e){}
+    }
+    checkPage(10);doc.setFontSize(8);doc.setFont(undefined,'normal');doc.setTextColor(100);
+    doc.text('GPS track: '+s.track.length+' points recorded during session',mg,y);y+=4;
+    doc.setTextColor(0);
   }
 
   return doc;
