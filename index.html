@@ -2134,7 +2134,7 @@ async function importData(event){
       if(existFeat.has(f.id))continue;
       await P('features',f);fA++;
     }
-    let sA=0,rA=0,gA=0;
+    let sA=0,rA=0,gA=0,bA=0;
     if(isFull){
       // Merge sessions
       if(data.sessions){
@@ -2162,7 +2162,6 @@ async function importData(event){
         }
       }
       // Merge baselines
-      let bA=0;
       if(data.baselines){
         const existBl=new Set((await A('baselines')).map(b=>b.id));
         for(const b of data.baselines){
