@@ -1,4 +1,4 @@
-const CACHE_NAME = 'acs-field-v19';
+const CACHE_NAME = 'acs-field-v20';
 const ASSETS = [
   './',
   './index.html',
