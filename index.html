@@ -298,6 +298,8 @@ select.fi{background:#fff}
     </div>
     <!-- Navigation -->
     <div class="card" id="navCard" style="display:none;border-color:var(--blue)"></div>
+    <!-- On-Site / Off-Site -->
+    <div class="card" id="siteTimeCard" style="border-color:var(--g)"></div>
     <!-- Hydrogeologic view -->
     <div id="sesHydro">
       <div class="stats">
@@ -998,10 +1000,13 @@ async function renderSes(){
   if(cSes.navToStart&&cSes.navToEnd){const t=Math.round((cSes.navToEnd-cSes.navToStart)/60000);info+='<strong>Travel to site:</strong> '+t+' min<br>'}
   if(cSes.navBackStart&&cSes.navBackEnd){const t=Math.round((cSes.navBackEnd-cSes.navBackStart)/60000);info+='<strong>Return travel:</strong> '+t+' min<br>'}
   if(cSes.track&&cSes.track.length){info+='<strong>GPS Track:</strong> '+cSes.track.length+' points'+(trackInterval?' <span style="color:var(--ok)">● Recording</span>':'')+'<br>'}
+  if(cSes.onSiteTime){info+='<strong>On-Site:</strong> '+fT(cSes.onSiteTime)+'<br>'}
+  if(cSes.offSiteTime){info+='<strong>Off-Site:</strong> '+fT(cSes.offSiteTime)+'<br>';const mins=Math.round((cSes.offSiteTime-cSes.onSiteTime)/60000);const h=Math.floor(mins/60),m=mins%60;info+='<strong>On-Site Duration:</strong> '+h+'h '+m+'m<br>'}
   info+='</div>';
   document.getElementById('sesInfoBody').innerHTML=info;
   renderNavUI();
   renderFollowUps();
+  renderSiteTime();
 
   // Show/hide based on service type
   const isHydro=cSes.serviceType==='hydrogeologic';
@@ -1141,6 +1146,27 @@ function renderRouteMap(track,features){
   ctx.strokeStyle='#1a1a1a';ctx.lineWidth=1.5;ctx.strokeRect(pad.l,pad.t,cw,ch);
   return canvas.toDataURL('image/png',0.9);
 }
+// On-site / Off-site time
+async function markOnSite(){cSes.onSiteTime=Date.now();await P('sessions',cSes);renderSiteTime();toast('On-site time: '+fT(cSes.onSiteTime))}
+async function markOffSite(){cSes.offSiteTime=Date.now();await P('sessions',cSes);renderSiteTime();const mins=Math.round((cSes.offSiteTime-cSes.onSiteTime)/60000);const h=Math.floor(mins/60),m=mins%60;toast('Off-site. On-site duration: '+h+'h '+m+'m')}
+function renderSiteTime(){
+  const el=document.getElementById('siteTimeCard');
+  if(!cSes){el.innerHTML='';return}
+  let h='<div class="card-t" style="color:var(--g)">⏱ Site Time</div>';
+  if(!cSes.onSiteTime){
+    h+='<button class="btn btn-p" onclick="markOnSite()" style="font-size:13px">📍 Mark On-Site Arrival</button>';
+  }else if(!cSes.offSiteTime){
+    h+='<div style="font-size:13px;margin-bottom:8px">✅ On-site since <strong>'+fT(cSes.onSiteTime)+'</strong></div>';
+    h+='<button class="btn btn-w" onclick="markOffSite()" style="font-size:13px">🏁 Mark Off-Site Departure</button>';
+  }else{
+    const mins=Math.round((cSes.offSiteTime-cSes.onSiteTime)/60000);
+    const hr=Math.floor(mins/60),mn=mins%60;
+    h+='<div style="font-size:13px">✅ On-site: <strong>'+fT(cSes.onSiteTime)+'</strong> → Off-site: <strong>'+fT(cSes.offSiteTime)+'</strong></div>';
+    h+='<div style="font-size:15px;font-weight:700;color:var(--g);margin-top:4px">On-site duration: '+hr+'h '+mn+'m</div>';
+  }
+  el.innerHTML=h;
+}
+
 async function startNavTo(){
   if(!cSes)return;
   const loc=await G('locations',cSes.locationId);
@@ -1845,6 +1871,8 @@ async function expPDF(mode){
   if(s.navToStart&&s.navToEnd)addField('Travel to Site',Math.round((s.navToEnd-s.navToStart)/60000)+' min');
   if(s.navBackStart&&s.navBackEnd)addField('Return Travel',Math.round((s.navBackEnd-s.navBackStart)/60000)+' min');
   if(s.navToEnd&&s.navBackEnd){const total=Math.round(((s.navToEnd-s.navToStart)+(s.navBackEnd-s.navBackStart))/60000);addField('Total Travel',total+' min')}
+  if(s.onSiteTime)addField('On-Site Arrival',fT(s.onSiteTime));
+  if(s.offSiteTime){addField('Off-Site Departure',fT(s.offSiteTime));const mins=Math.round((s.offSiteTime-s.onSiteTime)/60000);addField('On-Site Duration',Math.floor(mins/60)+'h '+mins%60+'m')}
 
   if(mr.length){
     addSection('Water Meters');
@@ -1991,7 +2019,8 @@ async function expPDF(mode){
   }
   const sizeMB=(blob.size/1024/1024).toFixed(1);
   const rpStr=s.reportingPeriod?'_'+fmtRP(s.reportingPeriod).replace(/[^a-zA-Z0-9]/g,'_'):'';
-  doc.save('ACS_Field_Report_'+s.clientName.replace(/[^a-zA-Z0-9]/g,'_')+rpStr+'_'+s.date+(mode==='full'?'_Full':'')+'.pdf');
+  const pdfName='ACS_Field_Report_'+s.clientName.replace(/[^a-zA-Z0-9]/g,'_')+rpStr+'_'+s.date+(mode==='full'?'_Full':'')+'.pdf';
+  dlBlob(blob,pdfName);
   toast('PDF downloaded ('+sizeMB+' MB)');
 }
 let _pdfCustomName=null;
@@ -2036,7 +2065,7 @@ async function expPackage(){
     const gp=await getGrpPhotos(sid,r.featureId);gp.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('group_photo_'+(i+1)+'.jpg',b,{base64:true})});
   }
   const blob=await zip.generateAsync({type:'blob'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ACS_Package_'+s.clientName+'_'+s.date+'.zip';a.click();toast('Package downloaded');
+  dlBlob(blob,'ACS_Package_'+s.clientName+'_'+s.date+'.zip');toast('Package downloaded');
 }
 
 async function expZip(){const sid=gES();if(!sid)return;if(typeof JSZip==='undefined'){toast('Need internet once');return}toast('Building ZIP...');const zip=new JSZip();const s=await G('sessions',sid);const rs=(await A('readings')).filter(r=>r.sessionId===sid);const fs=await A('features');for(const r of rs){const f=fs.find(x=>x.id===r.featureId);const fn=f?(r.type!=='generic'?r.type+'s/'+f.featureId:'service'):'other';const folder=zip.folder(fn);if(r.photos)r.photos.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('photo_'+(i+1)+'.jpg',b,{base64:true})});if(r.registerPhoto){const b=r.registerPhoto.split(',')[1];if(b)folder.file('register_photo.jpg',b,{base64:true})}
@@ -2044,8 +2073,26 @@ async function expZip(){const sid=gES();if(!sid)return;if(typeof JSZip==='undefi
 const gp=await getGrpPhotos(sid,r.featureId);gp.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('group_photo_'+(i+1)+'.jpg',b,{base64:true})})}
 // Also export group folders
 const grps=(await A('groups')).filter(g=>g.sessionId===sid);for(const g of grps){if(g.photos&&g.photos.length){const folder=zip.folder('groups/'+g.name.replace(/[^a-zA-Z0-9_-]/g,'_'));g.photos.forEach((p,i)=>{const b=p.split(',')[1];if(b)folder.file('photo_'+(i+1)+'.jpg',b,{base64:true})})}}
-const blob=await zip.generateAsync({type:'blob'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='photos_'+s.clientName+'_'+s.date+'.zip';a.click();toast('ZIP downloaded')}
-function dlF(c,n,t){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click()}
+const blob=await zip.generateAsync({type:'blob'});dlBlob(blob,'photos_'+s.clientName+'_'+s.date+'.zip');toast('ZIP downloaded')}
+function dlF(c,n,t){dlBlob(new Blob([c],{type:t}),n)}
+function dlBlob(blob,name){
+  // Try Web Share API first (best for iOS)
+  if(navigator.share&&navigator.canShare){
+    const file=new File([blob],name,{type:blob.type});
+    if(navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:name}).catch(()=>dlFallback(blob,name));
+      return;
+    }
+  }
+  dlFallback(blob,name);
+}
+function dlFallback(blob,name){
+  // Open in new tab as fallback
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;a.target='_blank';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url)},1000);
+}
 
 async function expFullRoute(){
   const sid=gES();if(!sid)return;
@@ -2057,8 +2104,7 @@ async function expFullRoute(){
   if(!img){toast('Could not render map');return}
   // Convert data URL to blob and download
   const res=await fetch(img);const blob=await res.blob();
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='Full_Route_'+s.clientName+'_'+s.date+'.png';a.click();
+  dlBlob(blob,'Full_Route_'+s.clientName+'_'+s.date+'.png');
   toast('Full route map downloaded');
 }
 
@@ -2356,8 +2402,8 @@ async function generateAndSharePDF(){
 // === ROUTE MAP SCOPING ===
 function getOnsiteTrack(session){
   if(!session.track||!session.track.length)return[];
-  const start=session.navToEnd||session.startTime;
-  const end=session.navBackStart||session.endTime||Date.now();
+  const start=session.onSiteTime||session.navToEnd||session.startTime;
+  const end=session.offSiteTime||session.navBackStart||session.endTime||Date.now();
   return session.track.filter(p=>p.t>=start&&p.t<=end);
 }
 function getFullTrack(session){return session.track||[]}
