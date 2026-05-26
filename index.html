@@ -151,6 +151,7 @@ select.fi{background:#fff}
 <div class="vw" id="v-client">
   <div class="dhdr"><button class="back" onclick="nav('clients')">‹</button><div class="dtitle" id="clientName"></div></div>
   <div class="card" id="clientInfo"></div>
+  <div class="map-wrap" id="clientMapWrap" style="display:none;margin-bottom:14px"></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <h3 style="font-size:16px;font-weight:700">Locations</h3>
     <button class="btn btn-p btn-sm" onclick="openAddLocation()">+ Add Location</button>
@@ -164,6 +165,7 @@ select.fi{background:#fff}
 <div class="vw" id="v-location">
   <div class="dhdr"><button class="back" onclick="nav('client')">‹</button><div class="dtitle" id="locName"></div></div>
   <div class="card" id="locInfo"></div>
+  <div class="map-wrap" id="locMapWrap" style="display:none;margin-bottom:14px"></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <h3 style="font-size:16px;font-weight:700">Features</h3>
     <button class="btn btn-p btn-sm" onclick="openAddFeature()">+ Add</button>
@@ -356,6 +358,8 @@ select.fi{background:#fff}
     <div class="pgrid" id="mtrPhotos"></div>
     <div id="mtrPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
   </div>
+  <!-- Group Photos for this feature -->
+  <div id="mtrGroupPhotos"></div>
   <div class="section-box">
     <div class="card-t">📋 Capture Register Value</div>
     <p style="font-size:13px;color:var(--dim);margin-bottom:10px">Select a photo showing the register, or take a new closeup, then enter the reading.</p>
@@ -407,6 +411,8 @@ select.fi{background:#fff}
     <div class="pgrid" id="wellPhotos"></div>
     <div id="wellPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
   </div>
+  <!-- Group Photos for this feature -->
+  <div id="wellGroupPhotos"></div>
   <div class="fg"><label class="fl">Pre-Check Pump Status</label>
     <div class="rgroup" id="pStat">
       <div class="ropt" onclick="selR(this,'pStat');autoSaveWellDraft()" data-value="on">ON</div>
@@ -458,6 +464,8 @@ select.fi{background:#fff}
     <div class="pgrid" id="custPhotos"></div>
     <div id="custPC" style="text-align:center;font-size:12px;color:var(--dim);margin-top:6px"></div>
   </div>
+  <!-- Group Photos for this feature -->
+  <div id="custGroupPhotos"></div>
   <div class="card">
     <div class="card-t">Data</div>
     <div id="custFields"></div>
@@ -692,6 +700,19 @@ select.fi{background:#fff}
   <button class="btn btn-s" onclick="closeM('grpModal')">Cancel</button>
 </div></div>
 
+<!-- EDIT GROUP MODAL -->
+<div class="modal-bg" id="editGrpModal"><div class="modal">
+  <h2>Edit Group</h2>
+  <div class="fg"><label class="fl">Group Name</label><input type="text" class="fi" id="editGrpName"></div>
+  <div class="fg">
+    <label class="fl">Features (check to include)</label>
+    <div id="editGrpFeatSelect"></div>
+  </div>
+  <button class="btn btn-p" onclick="saveEditGroup()">Save Changes</button>
+  <button class="btn btn-d" onclick="closeM('editGrpModal');curGroupId=document.getElementById('editGrpName').dataset.gid;deleteGroup()" style="font-size:13px">Delete Group</button>
+  <button class="btn btn-s" onclick="closeM('editGrpModal')">Cancel</button>
+</div></div>
+
 <!-- TAB BAR -->
 <div class="tbar">
   <button class="active" onclick="nav('clients')" data-tab="clients">
@@ -797,15 +818,58 @@ async function editClient(){const c=await G('clients',cCli);eCli=cCli;document.g
 async function saveCli(){const n=document.getElementById('cliN').value.trim();if(!n){toast('Enter name');return}await P('clients',{id:eCli||uid(),name:n,contact:document.getElementById('cliC').value.trim(),phone:document.getElementById('cliP').value.trim(),email:document.getElementById('cliE').value.trim()});closeM('cliModal');renderClis();if(eCli)renderCli();toast('Saved')}
 async function deleteClient(){if(!confirm('Delete client and ALL data?'))return;const locs=(await A('locations')).filter(l=>l.clientId===cCli);for(const l of locs){const fs=(await A('features')).filter(f=>f.locationId===l.id);for(const f of fs)await D('features',f.id);const ss=(await A('sessions')).filter(s=>s.locationId===l.id);for(const s of ss){const rs=(await A('readings')).filter(r=>r.sessionId===s.id);for(const r of rs)await D('readings',r.id);const gs=(await A('groups')).filter(g=>g.sessionId===s.id);for(const g of gs)await D('groups',g.id);await D('sessions',s.id)}await D('locations',l.id)}await D('clients',cCli);if(cSes&&cSes.clientId===cCli){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}nav('clients');toast('Deleted')}
 function openCli(id){cCli=id;nav('client')}
-async function renderCli(){const c=await G('clients',cCli);if(!c)return;document.getElementById('clientName').textContent=c.name;let h='<div style="font-size:13px;color:var(--dim)">';if(c.contact)h+='Contact: <strong>'+c.contact+'</strong><br>';if(c.phone)h+='Phone: '+c.phone+'<br>';if(c.email)h+='Email: '+c.email+'<br>';if(!c.contact&&!c.phone&&!c.email)h+='No contact info';h+='</div>';document.getElementById('clientInfo').innerHTML=h;const locs=(await A('locations')).filter(l=>l.clientId===cCli);const el=document.getElementById('locList');const emp=document.getElementById('locEmpty');if(!locs.length){el.innerHTML='';emp.style.display='block';return}emp.style.display='none';const fs=await A('features');el.innerHTML=locs.map(l=>{const n=fs.filter(f=>f.locationId===l.id).length;return '<div class="li" onclick="openLoc(\''+l.id+'\')"><div><div class="li-id">'+l.name+'</div><div class="li-sub">'+(l.address||'')+' • '+n+' features</div></div><span class="chevron">›</span></div>'}).join('')}
+async function renderCli(){const c=await G('clients',cCli);if(!c)return;document.getElementById('clientName').textContent=c.name;let h='<div style="font-size:13px;color:var(--dim)">';if(c.contact)h+='Contact: <strong>'+c.contact+'</strong><br>';if(c.phone)h+='Phone: '+c.phone+'<br>';if(c.email)h+='Email: '+c.email+'<br>';if(!c.contact&&!c.phone&&!c.email)h+='No contact info';h+='</div>';document.getElementById('clientInfo').innerHTML=h;const locs=(await A('locations')).filter(l=>l.clientId===cCli);const el=document.getElementById('locList');const emp=document.getElementById('locEmpty');if(!locs.length){el.innerHTML='';emp.style.display='block';renderClientMap();return}emp.style.display='none';const fs=await A('features');el.innerHTML=locs.map(l=>{const n=fs.filter(f=>f.locationId===l.id).length;return '<div class="li" onclick="openLoc(\''+l.id+'\')"><div><div class="li-id">'+l.name+'</div><div class="li-sub">'+(l.address||'')+' • '+n+' features</div></div><span class="chevron">›</span></div>'}).join('');renderClientMap()}
 
 // === LOCATIONS ===
 function openAddLocation(){eLoc=null;document.getElementById('locMT').textContent='Add Location';document.getElementById('locNI').value='';document.getElementById('locAI').value='';showM('locModal')}
 async function editLocation(){const l=await G('locations',cLoc);eLoc=cLoc;document.getElementById('locMT').textContent='Edit Location';document.getElementById('locNI').value=l.name;document.getElementById('locAI').value=l.address||'';showM('locModal')}
 async function saveLoc(){const n=document.getElementById('locNI').value.trim();if(!n){toast('Enter name');return}await P('locations',{id:eLoc||uid(),clientId:cCli,name:n,address:document.getElementById('locAI').value.trim()});closeM('locModal');renderCli();toast('Saved')}
 function openLoc(id){cLoc=id;nav('location')}
-async function renderLoc(){const l=await G('locations',cLoc);if(!l)return;document.getElementById('locName').textContent=l.name;document.getElementById('locInfo').innerHTML='<div style="font-size:13px;color:var(--dim)">'+(l.address||'No address')+'</div>';const fs=(await A('features')).filter(f=>f.locationId===cLoc);const el=document.getElementById('featureList');const emp=document.getElementById('featureEmpty');if(!fs.length){el.innerHTML='';emp.style.display='block';renderLocGroups();return}emp.style.display='none';const ms=fs.filter(f=>f.type==='meter').sort((a,b)=>a.featureId.localeCompare(b.featureId)),ws=fs.filter(f=>f.type==='well').sort((a,b)=>a.featureId.localeCompare(b.featureId));let h='';if(ms.length){h+='<div class="card-t">Meters ('+ms.length+')</div>';h+=ms.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}if(ws.length){h+='<div class="card-t" style="margin-top:10px">Wells ('+ws.length+')</div>';h+=ws.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}const cust=fs.filter(f=>f.type==='custom').sort((a,b)=>a.featureId.localeCompare(b.featureId));if(cust.length){h+='<div class="card-t" style="margin-top:10px">Custom ('+cust.length+')</div>';h+=cust.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.customLabel||'Custom')+(f.lat?' • 📍':'')+'</div></div><span class="chevron">›</span></div>').join('')}el.innerHTML=h;renderLocGroups()}
+async function renderLoc(){const l=await G('locations',cLoc);if(!l)return;document.getElementById('locName').textContent=l.name;document.getElementById('locInfo').innerHTML='<div style="font-size:13px;color:var(--dim)">'+(l.address||'No address')+'</div>';const fs=(await A('features')).filter(f=>f.locationId===cLoc);const el=document.getElementById('featureList');const emp=document.getElementById('featureEmpty');if(!fs.length){el.innerHTML='';emp.style.display='block';renderLocGroups();renderLocMap();return}emp.style.display='none';const ms=fs.filter(f=>f.type==='meter').sort((a,b)=>a.featureId.localeCompare(b.featureId)),ws=fs.filter(f=>f.type==='well').sort((a,b)=>a.featureId.localeCompare(b.featureId));let h='';if(ms.length){h+='<div class="card-t">Meters ('+ms.length+')</div>';h+=ms.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}if(ws.length){h+='<div class="card-t" style="margin-top:10px">Wells ('+ws.length+')</div>';h+=ws.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.lat?'📍 '+f.lat.toFixed(4)+', '+f.lng.toFixed(4):'No coordinates')+'</div></div><span class="chevron">›</span></div>').join('')}const cust=fs.filter(f=>f.type==='custom').sort((a,b)=>a.featureId.localeCompare(b.featureId));if(cust.length){h+='<div class="card-t" style="margin-top:10px">Custom ('+cust.length+')</div>';h+=cust.map(f=>'<div class="li" onclick="openFS(\''+f.id+'\')"><div><div class="li-id">'+f.featureId+'</div><div class="li-sub">'+(f.customLabel||'Custom')+(f.lat?' • 📍':'')+'</div></div><span class="chevron">›</span></div>').join('')}el.innerHTML=h;renderLocGroups();renderLocMap()}
 async function deleteLocation(){if(!confirm('Delete location and all data?'))return;const fs=(await A('features')).filter(f=>f.locationId===cLoc);for(const f of fs)await D('features',f.id);const ss=(await A('sessions')).filter(s=>s.locationId===cLoc);for(const s of ss){const rs=(await A('readings')).filter(r=>r.sessionId===s.id);for(const r of rs)await D('readings',r.id);const gs=(await A('groups')).filter(g=>g.sessionId===s.id);for(const g of gs)await D('groups',g.id);await D('sessions',s.id)}await D('locations',cLoc);if(cSes&&cSes.locationId===cLoc){cSes=null;localStorage.removeItem('lastSes4');updSesUI()}nav('client');toast('Deleted')}
+
+// === OVERVIEW MAPS ===
+let locMap=null,clientMap=null;
+const featureColors={meter:'#2d5a27',well:'#2471a3',custom:'#d4890a'};
+
+async function renderLocMap(){
+  const wrap=document.getElementById('locMapWrap');
+  if(locMap){locMap.remove();locMap=null}
+  const fs=(await A('features')).filter(f=>f.locationId===cLoc&&f.lat&&f.lng);
+  if(fs.length===0){wrap.style.display='none';return}
+  wrap.style.display='block';
+  const bounds=L.latLngBounds(fs.map(f=>[f.lat,f.lng]));
+  locMap=L.map(wrap).fitBounds(bounds.pad(0.15));
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(locMap);
+  fs.forEach(f=>{
+    const color=featureColors[f.type]||'#6b6b6b';
+    const icon=L.divIcon({className:'',html:'<div style="background:'+color+';color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)">'+f.featureId+'</div>',iconAnchor:[0,0]});
+    L.marker([f.lat,f.lng],{icon}).addTo(locMap);
+  });
+  if(fs.length===1)locMap.setView([fs[0].lat,fs[0].lng],16);
+  setTimeout(()=>locMap.invalidateSize(),200);
+}
+
+async function renderClientMap(){
+  const wrap=document.getElementById('clientMapWrap');
+  if(clientMap){clientMap.remove();clientMap=null}
+  const locs=(await A('locations')).filter(l=>l.clientId===cCli);
+  const allFs=[];
+  const allFeats=await A('features');
+  locs.forEach(l=>{allFeats.filter(f=>f.locationId===l.id&&f.lat&&f.lng).forEach(f=>allFs.push(f))});
+  if(allFs.length===0){wrap.style.display='none';return}
+  wrap.style.display='block';
+  const bounds=L.latLngBounds(allFs.map(f=>[f.lat,f.lng]));
+  clientMap=L.map(wrap).fitBounds(bounds.pad(0.15));
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(clientMap);
+  allFs.forEach(f=>{
+    const color=featureColors[f.type]||'#6b6b6b';
+    const icon=L.divIcon({className:'',html:'<div style="background:'+color+';color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)">'+f.featureId+'</div>',iconAnchor:[0,0]});
+    L.marker([f.lat,f.lng],{icon}).addTo(clientMap);
+  });
+  if(allFs.length===1)clientMap.setView([allFs[0].lat,allFs[0].lng],16);
+  setTimeout(()=>clientMap.invalidateSize(),200);
+}
 
 // === FEATURES ===
 function openAddFeature(){eFeat=null;document.getElementById('fsTitle').textContent='Add Feature';document.getElementById('fIdIn').value='';document.getElementById('fLat').value='';document.getElementById('fLng').value='';document.getElementById('fDelBtn').style.display='none';document.querySelectorAll('#fType .ropt').forEach(r=>r.classList.remove('sel'));document.querySelector('#fType [data-value="meter"]').classList.add('sel');customFields=[];renderCustomFields();togCustomFields();document.getElementById('fCustomLabel').value='';document.getElementById('fsBack').onclick=()=>nav('location');nav('feature-setup');setTimeout(()=>initSMap(),100);loadGroupCheckboxes(cLoc,null)}
@@ -1139,7 +1203,7 @@ setTimeout(()=>{if(confirm('Session complete. Send report to '+cSes.clientName+'
 async function openMtr(fid){cFeat=fid;const f=await G('features',fid);mPh=[];regP=null;document.getElementById('mtrT').textContent='Meter: '+f.featureId;document.getElementById('mtrReg').value='';document.getElementById('mtrNotes').value='';document.getElementById('regSelArea').style.display='none';['cb_mObstructed','cb_mVegDestruct','cb_mVegHerb','cb_mExtended','cb_mDecon'].forEach(x=>document.getElementById(x).checked=false);
 const rs=await A('readings');const ex=rs.find(r=>r.sessionId===cSes.id&&r.featureId===fid);
 if(ex){mPh=ex.photos||[];regP=ex.registerPhoto||null;document.getElementById('mtrReg').value=ex.registerValue||'';document.getElementById('mtrNotes').value=ex.notes||'';if(regP){document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP}if(ex.checks){document.getElementById('cb_mObstructed').checked=!!ex.checks.obstructed;document.getElementById('cb_mVegDestruct').checked=!!ex.checks.vegDestruct;document.getElementById('cb_mVegHerb').checked=!!ex.checks.vegHerbicide;document.getElementById('cb_mExtended').checked=!!ex.checks.extended;document.getElementById('cb_mDecon').checked=!!ex.checks.decon}}
-renderMP();nav('meter');
+renderMP();renderFeatureGroupPhotos(fid,'mtrGroupPhotos');nav('meter');
 // Load previous reading
 prevReadingVal=null;
 const prev=await getPrevReading(fid,cSes.id);
@@ -1149,6 +1213,68 @@ setTimeout(()=>{const w=document.getElementById('mtrMap');if(vMap){vMap.remove()
 function renderMP(){document.getElementById('mtrPhotos').innerHTML=mPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="mPh.splice('+i+',1);renderMP();autoSaveMtrDraft()">✕</button></div>').join('');document.getElementById('mtrPC').textContent=mPh.length?mPh.length+' photo'+(mPh.length>1?'s':''):''}
 function startRegSelect(){if(!mPh.length){toast('Take photos first');return}document.getElementById('regGrid').innerHTML=mPh.map((p,i)=>'<div class="pthumb" onclick="selRegP('+i+')" style="cursor:pointer"><img src="'+p+'"></div>').join('');showM('regModal')}
 function selRegP(i){regP=mPh[i];document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;closeM('regModal');autoSaveMtrDraft();setTimeout(()=>document.getElementById('mtrReg').focus(),300)}
+// === FEATURE GROUP PHOTOS ===
+let featureGrpTarget=null; // which group ID to add photos to from feature view
+
+async function renderFeatureGroupPhotos(featureId,containerId){
+  if(!cSes)return;
+  const grps=(await A('groups')).filter(g=>g.featureIds&&g.featureIds.includes(featureId));
+  const el=document.getElementById(containerId);
+  if(!grps.length){el.innerHTML='';return}
+  const rs=await A('readings');
+  let html='';
+  for(const g of grps){
+    const sesGrp=rs.find(r=>r.sessionId===cSes.id&&r.featureId===g.id&&r.type==='group_photos');
+    const photos=sesGrp&&sesGrp.photos?sesGrp.photos:[];
+    html+='<div class="card" style="border-color:var(--blue)">';
+    html+='<div class="card-t" style="color:var(--blue)">📸 Group: '+g.name;
+    if(photos.length)html+=' <span style="color:var(--ok)">✓ '+photos.length+' photo'+(photos.length>1?'s':'')+' taken</span>';
+    html+='</div>';
+    if(photos.length){
+      html+='<div class="pgrid" style="margin-bottom:8px">';
+      photos.forEach((p,i)=>{html+='<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="removeFeatureGrpPhoto(\''+g.id+'\','+i+',\''+containerId+'\')">✕</button></div>'});
+      html+='</div>';
+    }
+    html+='<div class="btn-row">';
+    html+='<button class="btn btn-s btn-sm" onclick="captureFeatureGrpPhoto(\''+g.id+'\',\''+containerId+'\')" style="font-size:12px;border-color:var(--blue);color:var(--blue)">📷 Take</button>';
+    html+='<button class="btn btn-s btn-sm" onclick="selectFeatureGrpLib(\''+g.id+'\',\''+containerId+'\')" style="font-size:12px;border-color:var(--blue);color:var(--blue)">📁 Library</button>';
+    html+='</div></div>';
+  }
+  el.innerHTML=html;
+}
+
+function captureFeatureGrpPhoto(groupId,containerId){
+  featureGrpTarget={groupId,containerId};
+  capTgt='featureGrp';
+  document.getElementById('camIn').value='';document.getElementById('camIn').click();
+}
+function selectFeatureGrpLib(groupId,containerId){
+  featureGrpTarget={groupId,containerId};
+  capTgt='featureGrpLib';
+  document.getElementById('libIn').value='';document.getElementById('libIn').click();
+}
+
+async function addPhotoToGroup(groupId,dataUrl,containerId){
+  if(!cSes)return;
+  const readingId=cSes.id+'_grp_'+groupId;
+  let reading;
+  try{reading=await G('readings',readingId)}catch(e){}
+  if(!reading)reading={id:readingId,sessionId:cSes.id,featureId:groupId,type:'group_photos',photos:[],notes:'',timestamp:Date.now(),draft:true};
+  reading.photos.push(dataUrl);
+  reading.timestamp=Date.now();
+  await P('readings',reading);
+  if(containerId)renderFeatureGroupPhotos(cFeat,containerId);
+}
+
+async function removeFeatureGrpPhoto(groupId,photoIdx,containerId){
+  const readingId=cSes.id+'_grp_'+groupId;
+  const reading=await G('readings',readingId);
+  if(!reading)return;
+  reading.photos.splice(photoIdx,1);
+  await P('readings',reading);
+  renderFeatureGroupPhotos(cFeat,containerId);
+}
+
 // Auto-save drafts
 async function autoSaveMtrDraft(){
   if(!cSes||!cFeat)return;
@@ -1177,7 +1303,7 @@ await P('readings',{id:cSes.id+'_'+cFeat,sessionId:cSes.id,featureId:cFeat,type:
 async function openWell2(fid){cFeat=fid;const f=await G('features',fid);wPh=[];document.getElementById('wellT').textContent='Well: '+f.featureId;['wDepth','wTemp','wCond','wTime','wellNotes'].forEach(x=>document.getElementById(x).value='');document.getElementById('wCondU').value='S';document.getElementById('condRow').style.display='none';document.querySelectorAll('#pStat .ropt').forEach(r=>r.classList.remove('sel'));['cb_wObstructed','cb_wVegDestruct','cb_wVegHerb','cb_wExtended','cb_wDecon'].forEach(x=>document.getElementById(x).checked=false);
 const rs=await A('readings');const ex=rs.find(r=>r.sessionId===cSes.id&&r.featureId===fid);
 if(ex){wPh=ex.photos||[];document.getElementById('wDepth').value=ex.waterDepth||'';document.getElementById('wTemp').value=ex.sampleTemp||'';if(ex.conductivityValue!=null){document.getElementById('wCond').value=ex.conductivityValue;document.getElementById('wCondU').value=ex.conductivityUnit||'S'}document.getElementById('wTime').value=ex.sampleTime||'';document.getElementById('wellNotes').value=ex.notes||'';if(ex.pumpStatus){const o=document.querySelector('#pStat [data-value="'+ex.pumpStatus+'"]');if(o)o.classList.add('sel')}if(ex.checks){document.getElementById('cb_wObstructed').checked=!!ex.checks.obstructed;document.getElementById('cb_wVegDestruct').checked=!!ex.checks.vegDestruct;document.getElementById('cb_wVegHerb').checked=!!ex.checks.vegHerbicide;document.getElementById('cb_wExtended').checked=!!ex.checks.extended;document.getElementById('cb_wDecon').checked=!!ex.checks.decon}convCond()}
-renderWP();nav('well');setTimeout(()=>{const w=document.getElementById('wellMap');if(vMap){vMap.remove();vMap=null}if(f.lat&&f.lng){w.style.display='block';vMap=L.map(w).setView([f.lat,f.lng],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(vMap);L.marker([f.lat,f.lng]).addTo(vMap).bindPopup(f.featureId).openPopup();setTimeout(()=>vMap.invalidateSize(),200)}else{w.style.display='none'}},100)}
+renderWP();renderFeatureGroupPhotos(fid,'wellGroupPhotos');nav('well');setTimeout(()=>{const w=document.getElementById('wellMap');if(vMap){vMap.remove();vMap=null}if(f.lat&&f.lng){w.style.display='block';vMap=L.map(w).setView([f.lat,f.lng],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(vMap);L.marker([f.lat,f.lng]).addTo(vMap).bindPopup(f.featureId).openPopup();setTimeout(()=>vMap.invalidateSize(),200)}else{w.style.display='none'}},100)}
 function renderWP(){document.getElementById('wellPhotos').innerHTML=wPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="wPh.splice('+i+',1);renderWP();autoSaveWellDraft()">✕</button></div>').join('');document.getElementById('wellPC').textContent=wPh.length?wPh.length+' photo'+(wPh.length>1?'s':''):''}
 function convCond(){const v=parseFloat(document.getElementById('wCond').value),u=document.getElementById('wCondU').value;if(isNaN(v)){document.getElementById('condRow').style.display='none';return}let ms;if(u==='S')ms=v*1000;else if(u==='mS')ms=v;else ms=v/1000;document.getElementById('condRow').style.display='flex';document.getElementById('condVal').textContent=ms.toFixed(4)+' mS'}
 async function saveWell(){const pump=document.querySelector('#pStat .ropt.sel'),depth=document.getElementById('wDepth').value;if(!pump){toast('Select pump status');return}if(!depth){toast('Enter depth');return}const cv=parseFloat(document.getElementById('wCond').value),cu=document.getElementById('wCondU').value;let cms=null;if(!isNaN(cv)){if(cu==='S')cms=cv*1000;else if(cu==='mS')cms=cv;else cms=cv/1000}
@@ -1206,11 +1332,13 @@ document.getElementById('libIn').addEventListener('change',function(e){
         else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}
         else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos()}
         else if(capTgt==='custom'){custPh.push(d);renderCustPhotos()}
+        else if(capTgt==='featureGrpLib'&&featureGrpTarget){addPhotoToGroup(featureGrpTarget.groupId,d,null)}
         processed++;if(processed===files.length){toast(files.length+' photos added');
           if(capTgt==='meter')autoSaveMtrDraft();
           else if(capTgt==='well')autoSaveWellDraft();
           else if(capTgt==='group')autoSaveGrpDraft();
           else if(capTgt==='custom')autoSaveCustDraft();
+          else if(capTgt==='featureGrpLib'&&featureGrpTarget)renderFeatureGroupPhotos(cFeat,featureGrpTarget.containerId);
         }
       };img.src=ev.target.result;
     };reader.readAsDataURL(files[fi]);
@@ -1225,7 +1353,7 @@ function renderCustomFields(){document.getElementById('customFieldList').innerHT
 
 // Quick add feature from session
 function quickAddFeature(){if(!cSes)return;cLoc=cSes.locationId;openAddFeature();document.getElementById('fsBack').onclick=()=>nav('session')}
-document.getElementById('camIn').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){const img=new Image();img.onload=function(){const c=document.createElement('canvas');const M=1600;let w=img.width,h=img.height;if(w>M||h>M){if(w>h){h=h*M/w;w=M}else{w=w*M/h;h=M}}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);if(capTgt==='meter'){mPh.push(d);renderMP();autoSaveMtrDraft()}else if(capTgt==='well'){wPh.push(d);renderWP();autoSaveWellDraft()}else if(capTgt==='register'){mPh.push(d);regP=d;renderMP();document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;autoSaveMtrDraft();setTimeout(()=>document.getElementById('mtrReg').focus(),300)}else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos();autoSaveGrpDraft()}else if(capTgt==='custom'){custPh.push(d);renderCustPhotos();autoSaveCustDraft()}};img.src=ev.target.result};r.readAsDataURL(f)});
+document.getElementById('camIn').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(ev){const img=new Image();img.onload=function(){const c=document.createElement('canvas');const M=1600;let w=img.width,h=img.height;if(w>M||h>M){if(w>h){h=h*M/w;w=M}else{w=w*M/h;h=M}}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);const d=c.toDataURL('image/jpeg',0.8);if(capTgt==='meter'){mPh.push(d);renderMP();autoSaveMtrDraft()}else if(capTgt==='well'){wPh.push(d);renderWP();autoSaveWellDraft()}else if(capTgt==='register'){mPh.push(d);regP=d;renderMP();document.getElementById('regSelArea').style.display='block';document.getElementById('regImg').src=regP;autoSaveMtrDraft();setTimeout(()=>document.getElementById('mtrReg').focus(),300)}else if(capTgt==='generic'){genPh.push(d);renderGenPhotos();autoSaveGeneric()}else if(capTgt==='group'){grpPh.push(d);renderGrpPhotos();autoSaveGrpDraft()}else if(capTgt==='custom'){custPh.push(d);renderCustPhotos();autoSaveCustDraft()}else if(capTgt==='featureGrp'&&featureGrpTarget){addPhotoToGroup(featureGrpTarget.groupId,d,featureGrpTarget.containerId)}};img.src=ev.target.result};r.readAsDataURL(f)});
 
 // === HELPERS ===
 function fmtNum(n){if(n==null||isNaN(n))return'—';return Number(n).toLocaleString('en-US')}
@@ -1436,7 +1564,7 @@ async function openCustomCheck(fid){
     document.getElementById('custNotes').value=ex.notes||'';
     if(ex.fieldValues){cfs.forEach((cf,i)=>{const el=document.getElementById('cf_'+i);if(el&&ex.fieldValues[cf.name]!=null)el.value=ex.fieldValues[cf.name]})}
   }
-  renderCustPhotos();nav('custom');
+  renderCustPhotos();renderFeatureGroupPhotos(fid,'custGroupPhotos');nav('custom');
   setTimeout(()=>{const w=document.getElementById('custMap');if(vMap){vMap.remove();vMap=null}if(f.lat&&f.lng){w.style.display='block';vMap=L.map(w).setView([f.lat,f.lng],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(vMap);L.marker([f.lat,f.lng]).addTo(vMap).bindPopup(f.featureId).openPopup();setTimeout(()=>vMap.invalidateSize(),200)}else{w.style.display='none'}},100);
 }
 function renderCustPhotos(){document.getElementById('custPhotos').innerHTML=custPh.map((p,i)=>'<div class="pthumb"><img src="'+p+'"><button class="pr" onclick="custPh.splice('+i+',1);renderCustPhotos();autoSaveCustDraft()">✕</button></div>').join('');document.getElementById('custPC').textContent=custPh.length?custPh.length+' photo'+(custPh.length>1?'s':''):''}
@@ -1522,6 +1650,30 @@ async function getGrpPhotos(sessionId,featureId){
 }
 
 // Render groups in location detail
+// Edit group
+async function openEditGroup(id){
+  const g=await G('groups',id);
+  if(!g)return;
+  document.getElementById('editGrpName').value=g.name;
+  document.getElementById('editGrpName').dataset.gid=id;
+  const fs=(await A('features')).filter(f=>f.locationId===g.locationId);
+  document.getElementById('editGrpFeatSelect').innerHTML=fs.sort((a,b)=>a.type.localeCompare(b.type)||a.featureId.localeCompare(b.featureId)).map(f=>{
+    const checked=g.featureIds.includes(f.id)?'checked':'';
+    return '<div class="feat-sel-item'+(checked?' checked':'')+'" onclick="this.classList.toggle(\'checked\');this.querySelector(\'input\').checked=this.classList.contains(\'checked\')"><input type="checkbox" value="'+f.id+'" '+checked+'><label>'+f.featureId+'</label><span class="feat-sel-type">'+f.type+'</span></div>';
+  }).join('');
+  showM('editGrpModal');
+}
+async function saveEditGroup(){
+  const id=document.getElementById('editGrpName').dataset.gid;
+  const g=await G('groups',id);
+  if(!g)return;
+  g.name=document.getElementById('editGrpName').value.trim()||g.name;
+  g.featureIds=[...document.querySelectorAll('#editGrpFeatSelect input:checked')].map(cb=>cb.value);
+  await P('groups',g);
+  closeM('editGrpModal');renderLoc();toast('Group updated');
+}
+
+// Render groups in location detail
 async function renderLocGroups(){
   const grps=(await A('groups')).filter(g=>g.locationId===cLoc);
   const el=document.getElementById('locGroupList');
@@ -1531,7 +1683,7 @@ async function renderLocGroups(){
   emp.style.display='none';
   el.innerHTML=grps.map(g=>{
     const members=g.featureIds.map(fid=>{const f=fs.find(x=>x.id===fid);return f?f.featureId:'?'}).join(', ');
-    return '<div class="li"><div style="flex:1"><div class="li-id">'+g.name+'</div><div class="li-sub">'+g.featureIds.length+' features: '+members+'</div></div><button style="background:#fde8e8;border:none;color:var(--red);width:28px;height:28px;border-radius:6px;font-size:13px;cursor:pointer;flex-shrink:0" onclick="curGroupId=\''+g.id+'\';deleteGroup()">✕</button></div>';
+    return '<div class="li" onclick="openEditGroup(\''+g.id+'\')"><div style="flex:1"><div class="li-id">'+g.name+'</div><div class="li-sub">'+g.featureIds.length+' features: '+(members||'none')+'</div></div><span class="chevron">›</span></div>';
   }).join('');
 }
 
