@@ -1820,6 +1820,7 @@ async function expSum(){const sid=gES();if(!sid)return;const s=await G('sessions
 async function expPDF(mode){
   const sid=gES();if(!sid)return;
   toast('Generating PDF...');
+  try{
   const {jsPDF}=window.jspdf;
   const s=await G('sessions',sid);
   const settings=await getSettings();
@@ -2020,8 +2021,9 @@ async function expPDF(mode){
   const sizeMB=(blob.size/1024/1024).toFixed(1);
   const rpStr=s.reportingPeriod?'_'+fmtRP(s.reportingPeriod).replace(/[^a-zA-Z0-9]/g,'_'):'';
   const pdfName='ACS_Field_Report_'+s.clientName.replace(/[^a-zA-Z0-9]/g,'_')+rpStr+'_'+s.date+(mode==='full'?'_Full':'')+'.pdf';
-  dlBlob(blob,pdfName);
+  doc.save(pdfName);
   toast('PDF downloaded ('+sizeMB+' MB)');
+  }catch(e){toast('PDF error: '+e.message);console.error(e)}
 }
 let _pdfCustomName=null;
 async function expPDFWithName(mode,fname){
@@ -2076,22 +2078,15 @@ const grps=(await A('groups')).filter(g=>g.sessionId===sid);for(const g of grps)
 const blob=await zip.generateAsync({type:'blob'});dlBlob(blob,'photos_'+s.clientName+'_'+s.date+'.zip');toast('ZIP downloaded')}
 function dlF(c,n,t){dlBlob(new Blob([c],{type:t}),n)}
 function dlBlob(blob,name){
-  // Try Web Share API first (best for iOS)
-  if(navigator.share&&navigator.canShare){
-    const file=new File([blob],name,{type:blob.type});
-    if(navigator.canShare({files:[file]})){
-      navigator.share({files:[file],title:name}).catch(()=>dlFallback(blob,name));
-      return;
-    }
-  }
-  dlFallback(blob,name);
-}
-function dlFallback(blob,name){
-  // Open in new tab as fallback
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=name;a.target='_blank';
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url)},1000);
+  try{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=name;
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url)},2000);
+  }catch(e){toast('Download error: '+e.message)}
 }
 
 async function expFullRoute(){
@@ -2125,6 +2120,7 @@ async function exportProfiles(){
 
 async function exportFull(){
   toast('Building full backup...');
+  try{
   const settings=await getSettings();
   const data={
     exportType:'full',
@@ -2143,6 +2139,7 @@ async function exportFull(){
   const sizeMB=(json.length/1024/1024).toFixed(1);
   dlF(json,'ACS_Full_Backup_'+new Date().toISOString().split('T')[0]+'.json','application/json');
   toast('Full backup exported ('+sizeMB+' MB)');
+  }catch(e){toast('Export error: '+e.message);console.error(e)}
 }
 
 async function importData(event){
